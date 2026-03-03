@@ -1,26 +1,102 @@
 @import "tailwindcss";
 
+/* ── Design tokens ──────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --paper:   #FAFAF8;
+  --surface: #F4F3EF;
+  --border:  #E5E3DC;
+
+  /* Ink */
+  --ink:     #1A1916;
+  --ink-60:  #6B6860;
+  --ink-30:  #B5B2AA;
+
+  /* Gold — brand, milestone, priority-1 */
+  --gold:    #B8922A;
+  --gold-bg: #FBF5E6;
+
+  /* Event type colors */
+  --sage:    #3D6B50;  --sage-bg:  #EBF4EE;
+  --slate:   #3D5470;  --slate-bg: #EBF0F5;
+  --rose:    #8B3D3D;  --rose-bg:  #F5EBEB;
+  --plum:    #5C3D70;  --plum-bg:  #F0EBF5;
+  --amber:   #8B5A2B;  --amber-bg: #F5EEEB;
+  --teal:    #2B6B6B;  --teal-bg:  #EBF4F4;
+
+  /* Chart lines */
+  --chart-baseline: #B5B2AA;
+  --chart-scenario: #B8922A;
 }
 
+/* ── Tailwind theme bridge ──────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-lora);
+  --font-sans:  var(--font-geist-sans);
+  --font-mono:  var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── Base ───────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 13px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Typography helpers ─────────────────────────────────────── */
+.type-display {
+  font-family: var(--font-lora), Georgia, serif;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.type-title {
+  font-family: var(--font-lora), Georgia, serif;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.type-label-caps {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.type-body {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+}
+
+.type-body-small {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 300;
+}
+
+.type-mono {
+  font-family: var(--font-geist-mono), 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 400;
 }
