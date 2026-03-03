@@ -1,7 +1,7 @@
 "use client";
 
-import { redirect } from "next/navigation";
-import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import { usePlanStore } from "@/store/planStore";
 import { simulatePlan } from "@/engine";
 import type { LifeEvent, Mutation } from "@/scenario/lifeEvents/types";
@@ -743,21 +743,22 @@ const TABS = [
 const SIM_MAX_AGE = 85;
 
 export default function PlanPage() {
+  const router = useRouter();
   const { plan, activeTab, setActiveTab, lifeEvents } = usePlanStore();
 
-  if (!plan) {
-    redirect("/onboarding/stage1");
-  }
+  useEffect(() => {
+    if (!plan) router.replace("/onboarding/stage1");
+  }, [plan, router]);
 
   const baselineRows = useMemo(
-    () => simulatePlan(plan, { minEndAge: SIM_MAX_AGE }),
+    () => (plan ? simulatePlan(plan, { minEndAge: SIM_MAX_AGE }) : []),
     [plan]
   );
 
   const activeEvents = lifeEvents.filter((e) => e.enabled);
 
   const scenarioRows = useMemo(() => {
-    if (activeEvents.length === 0) return [];
+    if (!plan || activeEvents.length === 0) return [];
     const overrides = activeEvents.flatMap((e) =>
       buildOverridesFromLifeEvent(e, { minAge: plan.startAge, maxAge: SIM_MAX_AGE })
     );
@@ -768,6 +769,10 @@ export default function PlanPage() {
     );
     return simulatePlan(plan, { yearInputs, minEndAge: SIM_MAX_AGE });
   }, [plan, activeEvents]);
+
+  if (!plan) {
+    return null; // useEffect above handles the redirect
+  }
 
   const firstName = (plan as unknown as { firstName?: string }).firstName ?? "Alex";
   const activeCount = activeEvents.length;
