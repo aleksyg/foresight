@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { useMemo } from "react";
 import { usePlanStore } from "@/store/planStore";
 import { simulatePlan } from "@/engine";
+import type { LifeEvent, Mutation } from "@/scenario/lifeEvents/types";
+import { buildOverridesFromLifeEvent } from "@/scenario/lifeEvents/toTargetedOverrides";
+import { buildScenarioYearInputsFromOverrides, extendYearInputsToAge } from "@/rulespec/index";
 import { LifeEventsSidebar } from "@/components/layout/LifeEventsSidebar";
 import { RoadmapPanel } from "@/components/layout/RoadmapPanel";
 import { ProjectionChart } from "@/components/chart/ProjectionChart";
@@ -20,54 +23,53 @@ function fmtPct(n: number) {
   return `${Math.round(n)}%`;
 }
 
-/* ── Active event impact rows (static placeholder) ──────────── */
+/* ── Event marker helpers ────────────────────────────────────── */
 
-const ACTIVE_EVENTS = [
-  {
-    id: "marriage",
-    emoji: "💍",
-    label: "Marriage",
-    color: "var(--gold)",
-    bg: "var(--gold-bg)",
-    desc: "Age 31 · Wedding + joint expenses",
-    cost: "-$22K upfront",
-    delta: "+$650/mo ongoing",
-    deltaPos: true,
-  },
-  {
-    id: "firstchild",
-    emoji: "👶",
-    label: "First child",
-    color: "var(--rose)",
-    bg: "var(--rose-bg)",
-    desc: "Age 33 · Childcare, diapers, gear",
-    cost: null,
-    delta: "+$856K at retirement",
-    deltaPos: true,
-  },
-  {
-    id: "home",
-    emoji: "🏠",
-    label: "Buy a home",
-    color: "var(--slate)",
-    bg: "var(--slate-bg)",
-    desc: "Age 35 · Buying + closing costs",
-    cost: "-$90K upfront",
-    delta: "+$308K at retirement",
-    deltaPos: true,
-  },
-  {
-    id: "career",
-    emoji: "🚀",
-    label: "Career leap",
-    color: "var(--sage)",
-    bg: "var(--sage-bg)",
-    desc: "Age 40 · +$42,500 raise salary",
-    cost: null,
-    delta: "+$856K at retirement",
-    deltaPos: true,
-  },
-];
+const EVENT_MARKER: Record<string, { emoji: string; hexColor: string }> = {
+  marriage:    { emoji: "💍", hexColor: "#B8922A" },
+  first_child: { emoji: "👶", hexColor: "#8B3D3D" },
+  home:        { emoji: "🏠", hexColor: "#3D5470" },
+  career:      { emoji: "🚀", hexColor: "#3D6B50" },
+  sabbatical:  { emoji: "🌍", hexColor: "#8B5A2B" },
+  college:     { emoji: "🎓", hexColor: "#5C3D70" },
+};
+
+function getMutationStartAge(m: Mutation): number | null {
+  switch (m.kind) {
+    case "income_set_range":
+    case "income_growth_range":
+    case "income_cap_range":
+    case "expense_recurring":
+      return m.startAge;
+    case "income_milestone":
+    case "income_one_time_bonus":
+    case "income_growth_step":
+    case "expense_one_time":
+    case "home_purchase":
+      return m.age;
+    default:
+      return null;
+  }
+}
+
+function getEventTriggerAge(evt: LifeEvent): number | null {
+  for (const m of evt.mutations) {
+    const age = getMutationStartAge(m);
+    if (age != null) return age;
+  }
+  return null;
+}
+
+/* ── Event display metadata ───────────────────────────────────── */
+
+const EVENT_DISPLAY_META: Record<string, { emoji: string; color: string; bg: string; desc: string }> = {
+  marriage:    { emoji: "💍", color: "var(--gold)",  bg: "var(--gold-bg)",  desc: "Shared cost savings from age 31" },
+  first_child: { emoji: "👶", color: "var(--rose)",  bg: "var(--rose-bg)",  desc: "Childcare + expenses through age 18" },
+  home:        { emoji: "🏠", color: "var(--slate)", bg: "var(--slate-bg)", desc: "$450K home purchase at age 35" },
+  career:      { emoji: "🚀", color: "var(--sage)",  bg: "var(--sage-bg)",  desc: "Senior role salary leap at age 40" },
+  sabbatical:  { emoji: "🌍", color: "var(--amber)", bg: "var(--amber-bg)", desc: "One year off at age 45" },
+  college:     { emoji: "🎓", color: "var(--plum)",  bg: "var(--plum-bg)",  desc: "Four years college expenses from age 47" },
+};
 
 /* ── Milestone data ──────────────────────────────────────────── */
 
@@ -230,7 +232,28 @@ function MetricCard({
   );
 }
 
-function DashboardTab({ rows }: { rows: ReturnType<typeof simulatePlan> }) {
+function DashboardTab({
+  baselineRows,
+  scenarioRows,
+  activeEvents,
+}: {
+  baselineRows: ReturnType<typeof simulatePlan>;
+  scenarioRows: ReturnType<typeof simulatePlan>;
+  activeEvents: LifeEvent[];
+}) {
+  const baseEnd = baselineRows[baselineRows.length - 1]?.endNetWorth ?? 0;
+  const scenEnd = scenarioRows.length > 0
+    ? scenarioRows[scenarioRows.length - 1]?.endNetWorth ?? baseEnd
+    : baseEnd;
+  const totalDelta = scenEnd - baseEnd;
+
+  const chartMarkers = activeEvents.flatMap((evt) => {
+    const age = getEventTriggerAge(evt);
+    const info = EVENT_MARKER[evt.id];
+    if (age == null || !info) return [];
+    return [{ age, emoji: info.emoji, hexColor: info.hexColor }];
+  });
+
   return (
     <div style={{ padding: "20px 28px 28px" }}>
       {/* Chart */}
@@ -246,7 +269,11 @@ function DashboardTab({ rows }: { rows: ReturnType<typeof simulatePlan> }) {
           flexDirection: "column",
         }}
       >
-        <ProjectionChart baselineRows={rows} />
+        <ProjectionChart
+          baselineRows={baselineRows}
+          scenarioRows={scenarioRows.length > 0 ? scenarioRows : undefined}
+          markers={chartMarkers}
+        />
       </div>
 
       {/* Active events impact */}
@@ -260,70 +287,83 @@ function DashboardTab({ rows }: { rows: ReturnType<typeof simulatePlan> }) {
       >
         <div
           style={{
-            fontSize: "11px",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: "var(--ink-60)",
-            fontWeight: 500,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
             marginBottom: "12px",
           }}
         >
-          Active events impact
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          {ACTIVE_EVENTS.map((evt) => (
+          <div
+            style={{
+              fontSize: "11px",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "var(--ink-60)",
+              fontWeight: 500,
+            }}
+          >
+            Active events
+          </div>
+          {activeEvents.length > 0 && (
             <div
-              key={evt.id}
-              style={{ display: "flex", alignItems: "center", gap: "12px" }}
+              style={{
+                fontSize: "11px",
+                fontFamily: "var(--font-geist-mono)",
+                fontWeight: 500,
+                color: totalDelta >= 0 ? "var(--sage)" : "var(--rose)",
+              }}
             >
-              <div
-                style={{
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "7px",
-                  background: evt.bg,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "13px",
-                  flexShrink: 0,
-                }}
-              >
-                {evt.emoji}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--ink)" }}>
-                  {evt.label}
-                </div>
-                <div style={{ fontSize: "11px", color: "var(--ink-60)" }}>
-                  {evt.desc}
-                </div>
-              </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                {evt.cost && (
+              {totalDelta >= 0 ? "+" : ""}{fmt(totalDelta)} at retirement
+            </div>
+          )}
+        </div>
+
+        {activeEvents.length === 0 ? (
+          <div style={{ fontSize: "12px", color: "var(--ink-60)", fontStyle: "italic" }}>
+            No active life events — toggle some on in the sidebar.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {activeEvents.map((evt) => {
+              const meta = EVENT_DISPLAY_META[evt.id] ?? {
+                emoji: "✦",
+                color: "var(--gold)",
+                bg: "var(--gold-bg)",
+                desc: "",
+              };
+              return (
+                <div
+                  key={evt.id}
+                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                >
                   <div
                     style={{
-                      fontSize: "11px",
-                      color: "var(--rose)",
-                      fontFamily: "var(--font-geist-mono)",
+                      width: "28px",
+                      height: "28px",
+                      borderRadius: "7px",
+                      background: meta.bg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "13px",
+                      flexShrink: 0,
                     }}
                   >
-                    {evt.cost}
+                    {meta.emoji}
                   </div>
-                )}
-                <div
-                  style={{
-                    fontSize: "11px",
-                    color: evt.deltaPos ? "var(--sage)" : "var(--rose)",
-                    fontFamily: "var(--font-geist-mono)",
-                  }}
-                >
-                  {evt.delta}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--ink)" }}>
+                      {evt.title}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--ink-60)" }}>
+                      {meta.desc}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -700,32 +740,54 @@ const TABS = [
   { id: "milestones" as const,  label: "Milestones"        },
 ];
 
+const SIM_MAX_AGE = 85;
+
 export default function PlanPage() {
-  const { plan, activeTab, setActiveTab } = usePlanStore();
+  const { plan, activeTab, setActiveTab, lifeEvents } = usePlanStore();
 
   if (!plan) {
     redirect("/onboarding/stage1");
   }
 
   const baselineRows = useMemo(
-    () => simulatePlan(plan, { minEndAge: 85 }),
+    () => simulatePlan(plan, { minEndAge: SIM_MAX_AGE }),
     [plan]
   );
 
-  const firstName = (plan as unknown as { firstName?: string }).firstName ?? "Alex";
-  const activeCount = 4; // placeholder
+  const activeEvents = lifeEvents.filter((e) => e.enabled);
 
-  const retireRow = baselineRows.find((r) => r.age === plan.endAge);
+  const scenarioRows = useMemo(() => {
+    if (activeEvents.length === 0) return [];
+    const overrides = activeEvents.flatMap((e) =>
+      buildOverridesFromLifeEvent(e, { minAge: plan.startAge, maxAge: SIM_MAX_AGE })
+    );
+    const yearInputs = extendYearInputsToAge(
+      buildScenarioYearInputsFromOverrides(plan, overrides),
+      plan,
+      SIM_MAX_AGE,
+    );
+    return simulatePlan(plan, { yearInputs, minEndAge: SIM_MAX_AGE });
+  }, [plan, activeEvents]);
+
+  const firstName = (plan as unknown as { firstName?: string }).firstName ?? "Alex";
+  const activeCount = activeEvents.length;
+
+  const rows = scenarioRows.length > 0 ? scenarioRows : baselineRows;
+  const retireRow = rows.find((r) => r.age === plan.endAge);
   const firstRow  = baselineRows[0];
   const projectedAtRetirement = retireRow?.endNetWorth ?? 0;
   const currentNetWorth = firstRow?.endNetWorth ?? 0;
 
-  // Estimate savings rate: (income - spend) / income
+  const baseRetireNW = baselineRows.find((r) => r.age === plan.endAge)?.endNetWorth ?? 0;
+  const scenarioDelta = projectedAtRetirement - baseRetireNW;
+
+  // Estimate savings rate from first year's simulation data
+  const firstSimRow = baselineRows[0];
+  const annualSavings = firstSimRow?.annualSavings ?? 0;
   const annualIncome = plan.household.user.income.baseAnnual;
-  const monthlySpend =
-    plan.expenses.mode === "total" ? plan.expenses.lifestyleMonthly : 3000;
-  const annualSpend = monthlySpend * 12;
-  const savingsRate = Math.max(0, Math.round(((annualIncome - annualSpend) / annualIncome) * 100));
+  const savingsRate = annualIncome > 0
+    ? Math.max(0, Math.round((annualSavings / annualIncome) * 100))
+    : 0;
 
   return (
     <div
@@ -780,8 +842,12 @@ export default function PlanPage() {
           <MetricCard
             label={`At retirement · Age ${plan.endAge}`}
             value={fmt(projectedAtRetirement)}
-            delta={`▲ ${fmt(Math.abs(projectedAtRetirement - currentNetWorth))} vs baseline`}
-            deltaPositive
+            delta={
+              scenarioRows.length > 0 && Math.abs(scenarioDelta) >= 1000
+                ? `${scenarioDelta >= 0 ? "▲" : "▼"} ${fmt(Math.abs(scenarioDelta))} vs baseline`
+                : undefined
+            }
+            deltaPositive={scenarioDelta >= 0}
           />
           <MetricCard
             label="Monthly savings rate"
@@ -835,7 +901,13 @@ export default function PlanPage() {
 
         {/* Tab content */}
         <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-          {activeTab === "dashboard"  && <DashboardTab rows={baselineRows} />}
+          {activeTab === "dashboard"  && (
+            <DashboardTab
+              baselineRows={baselineRows}
+              scenarioRows={scenarioRows}
+              activeEvents={activeEvents}
+            />
+          )}
           {activeTab === "allocation" && <AllocationTab />}
           {activeTab === "milestones" && <MilestonesTab currentNetWorth={currentNetWorth} />}
         </div>

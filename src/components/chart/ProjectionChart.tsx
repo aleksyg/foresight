@@ -8,12 +8,20 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  ReferenceLine,
 } from "recharts";
 import type { YearRow } from "@/engine";
+
+export interface EventMarker {
+  age: number;
+  emoji: string;
+  hexColor: string;
+}
 
 interface ProjectionChartProps {
   baselineRows: YearRow[];
   scenarioRows?: YearRow[];
+  markers?: EventMarker[];
 }
 
 function formatK(n: number) {
@@ -22,8 +30,44 @@ function formatK(n: number) {
   return `$${Math.round(n)}`;
 }
 
-export function ProjectionChart({ baselineRows, scenarioRows }: ProjectionChartProps) {
+function EventMarkerLabel({
+  viewBox,
+  emoji,
+  hexColor,
+}: {
+  viewBox?: { x?: number; y?: number };
+  emoji: string;
+  hexColor: string;
+}) {
+  const cx = viewBox?.x ?? 0;
+  const cy = (viewBox?.y ?? 0) + 13;
+
+  return (
+    <g style={{ pointerEvents: "none" }}>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={11}
+        fill="white"
+        stroke={hexColor}
+        strokeWidth="1.5"
+      />
+      <text
+        x={cx}
+        y={cy}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize="11"
+      >
+        {emoji}
+      </text>
+    </g>
+  );
+}
+
+export function ProjectionChart({ baselineRows, scenarioRows, markers }: ProjectionChartProps) {
   const hasScenario = scenarioRows && scenarioRows.length > 0;
+  const hasMarkers = markers && markers.length > 0;
 
   const data = baselineRows.map((row, i) => ({
     age: row.age,
@@ -56,20 +100,21 @@ export function ProjectionChart({ baselineRows, scenarioRows }: ProjectionChartP
             Net Worth Projection
           </div>
           <div style={{ fontSize: "11px", color: "var(--ink-60)", marginTop: "2px" }}>
-            {hasScenario ? "Scenario (solid) vs Baseline (dashed) · Events" : "Baseline projection"}
+            {hasScenario
+              ? "Scenario (solid) vs Baseline (dashed)"
+              : "Baseline projection"}
           </div>
         </div>
         <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-          <LegendItem color="var(--border)" label="Baseline" />
-          <LegendItem color="var(--gold)" label="Scenario" />
-          {hasScenario && <LegendItem color="var(--sage)" label="Events" />}
+          <LegendItem color="var(--border)" label="Baseline" dashed />
+          {hasScenario && <LegendItem color="var(--gold)" label="With events" />}
         </div>
       </div>
 
       {/* Chart */}
       <div style={{ flex: 1, minHeight: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <LineChart data={data} margin={{ top: 22, right: 4, bottom: 0, left: 0 }}>
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="var(--border)"
@@ -114,6 +159,26 @@ export function ProjectionChart({ baselineRows, scenarioRows }: ProjectionChartP
               }}
               itemStyle={{ color: "var(--ink-60)" }}
             />
+
+            {/* Event markers — thin vertical lines with emoji badges */}
+            {hasMarkers &&
+              markers.map((m) => (
+                <ReferenceLine
+                  key={`${m.age}-${m.emoji}`}
+                  x={m.age}
+                  stroke={m.hexColor}
+                  strokeWidth={1}
+                  strokeDasharray="3 2"
+                  strokeOpacity={0.5}
+                  label={
+                    <EventMarkerLabel
+                      emoji={m.emoji}
+                      hexColor={m.hexColor}
+                    />
+                  }
+                />
+              ))}
+
             {/* Baseline — muted, dashed when scenario active */}
             <Line
               type="monotone"
@@ -142,18 +207,40 @@ export function ProjectionChart({ baselineRows, scenarioRows }: ProjectionChartP
   );
 }
 
-function LegendItem({ color, label }: { color: string; label: string }) {
+function LegendItem({
+  color,
+  label,
+  dashed,
+}: {
+  color: string;
+  label: string;
+  dashed?: boolean;
+}) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-      <div
-        style={{
-          width: "8px",
-          height: "8px",
-          borderRadius: "50%",
-          background: color,
-          flexShrink: 0,
-        }}
-      />
+      {dashed ? (
+        <svg width="16" height="8" style={{ flexShrink: 0 }}>
+          <line
+            x1="0"
+            y1="4"
+            x2="16"
+            y2="4"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeDasharray="4 2"
+          />
+        </svg>
+      ) : (
+        <div
+          style={{
+            width: "16px",
+            height: "2px",
+            background: color,
+            borderRadius: "1px",
+            flexShrink: 0,
+          }}
+        />
+      )}
       <span style={{ fontSize: "11px", color: "var(--ink-60)" }}>{label}</span>
     </div>
   );

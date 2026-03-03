@@ -1,18 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { usePlanStore } from "@/store/planStore";
+import { simulatePlan } from "@/engine/simulatePlan";
+import { buildOverridesFromLifeEvent } from "@/scenario/lifeEvents/toTargetedOverrides";
+import { buildScenarioYearInputsFromOverrides, extendYearInputsToAge } from "@/rulespec/index";
+import { buildToggleResponse } from "@/lib/toggleResponse";
+import type { LifeEvent } from "@/scenario/lifeEvents/types";
 
 type EventColor = "gold" | "rose" | "slate" | "sage" | "amber" | "plum" | "teal";
-
-interface SidebarEvent {
-  id: string;
-  emoji: string;
-  label: string;
-  color: EventColor;
-  meta: string;
-  enabled: boolean;
-}
 
 const COLOR_MAP: Record<EventColor, { fg: string; bg: string }> = {
   gold:  { fg: "var(--gold)",  bg: "var(--gold-bg)"  },
@@ -24,14 +20,16 @@ const COLOR_MAP: Record<EventColor, { fg: string; bg: string }> = {
   teal:  { fg: "var(--teal)",  bg: "var(--teal-bg)"  },
 };
 
-const INITIAL_EVENTS: SidebarEvent[] = [
-  { id: "marriage",    emoji: "💍", label: "Marriage",      color: "gold",  meta: "Age 31 · +$650/mo",     enabled: true  },
-  { id: "firstchild",  emoji: "👶", label: "First child",   color: "rose",  meta: "Age 33 · $2,500/mo",    enabled: true  },
-  { id: "home",        emoji: "🏠", label: "Buy a home",    color: "slate", meta: "Age 35 · $1,299/mo",    enabled: true  },
-  { id: "career",      emoji: "🚀", label: "Career leap",   color: "sage",  meta: "Age 40 · +$42,500/yr",  enabled: true  },
-  { id: "sabbatical",  emoji: "🌍", label: "Sabbatical",    color: "amber", meta: "Age 45 · $1,500/mo",    enabled: false },
-  { id: "college",     emoji: "🎓", label: "Kids college",  color: "plum",  meta: "Age 47 · $800/mo",      enabled: false },
-];
+const EVENT_DISPLAY: Record<string, { emoji: string; color: EventColor; meta: string }> = {
+  marriage:    { emoji: "💍", color: "gold",  meta: "Age 31 · +$650/mo"    },
+  first_child: { emoji: "👶", color: "rose",  meta: "Age 33 · $2,500/mo"   },
+  home:        { emoji: "🏠", color: "slate", meta: "Age 35 · $1,299/mo"   },
+  career:      { emoji: "🚀", color: "sage",  meta: "Age 40 · +$42,500/yr" },
+  sabbatical:  { emoji: "🌍", color: "amber", meta: "Age 45 · $1,500/mo"   },
+  college:     { emoji: "🎓", color: "plum",  meta: "Age 47 · $800/mo"     },
+};
+
+const SIM_MAX_AGE = 85;
 
 function Toggle({ on, color }: { on: boolean; color: EventColor }) {
   const { fg } = COLOR_MAP[color];
@@ -66,13 +64,40 @@ function Toggle({ on, color }: { on: boolean; color: EventColor }) {
   );
 }
 
-export function LifeEventsSidebar() {
-  const [events, setEvents] = useState<SidebarEvent[]>(INITIAL_EVENTS);
+function runScenario(plan: Parameters<typeof simulatePlan>[0], events: LifeEvent[]) {
+  const enabledEvents = events.filter((e) => e.enabled);
+  const overrides = enabledEvents.flatMap((e) =>
+    buildOverridesFromLifeEvent(e, { minAge: plan.startAge, maxAge: SIM_MAX_AGE })
+  );
+  const yearInputs = extendYearInputsToAge(
+    buildScenarioYearInputsFromOverrides(plan, overrides),
+    plan,
+    SIM_MAX_AGE,
+  );
+  return simulatePlan(plan, { yearInputs, minEndAge: SIM_MAX_AGE });
+}
 
-  const toggle = (id: string) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, enabled: !e.enabled } : e))
+export function LifeEventsSidebar() {
+  const { plan, lifeEvents, lastToggleResponse, toggleLifeEvent, setLastToggleResponse } =
+    usePlanStore();
+
+  const handleToggle = (id: string) => {
+    toggleLifeEvent(id);
+
+    if (!plan) return;
+
+    // Compute response after toggle (state hasn't updated yet, so flip manually)
+    const updatedEvents = lifeEvents.map((e) =>
+      e.id === id ? { ...e, enabled: !e.enabled } : e
     );
+    const nowEnabled = updatedEvents.find((e) => e.id === id)?.enabled ?? false;
+    const evt = lifeEvents.find((e) => e.id === id);
+    if (!evt) return;
+
+    const baselineRows = simulatePlan(plan, { minEndAge: SIM_MAX_AGE });
+    const scenarioRows = runScenario(plan, updatedEvents);
+    const msg = buildToggleResponse(evt.title, nowEnabled, baselineRows, scenarioRows);
+    setLastToggleResponse(msg);
   };
 
   return (
@@ -147,12 +172,18 @@ export function LifeEventsSidebar() {
           padding: "4px 12px 12px",
         }}
       >
-        {events.map((evt) => {
-          const { fg, bg } = COLOR_MAP[evt.color];
+        {lifeEvents.map((evt) => {
+          const display = EVENT_DISPLAY[evt.id] ?? {
+            emoji: "✦",
+            color: "gold" as EventColor,
+            meta: "",
+          };
+          const { fg, bg } = COLOR_MAP[display.color];
+
           return (
             <div
               key={evt.id}
-              onClick={() => toggle(evt.id)}
+              onClick={() => handleToggle(evt.id)}
               style={{
                 borderRadius: "10px",
                 border: `1.5px solid ${evt.enabled ? fg : "var(--border)"}`,
@@ -186,7 +217,7 @@ export function LifeEventsSidebar() {
                     background: bg,
                   }}
                 >
-                  {evt.emoji}
+                  {display.emoji}
                 </div>
 
                 {/* Text */}
@@ -199,7 +230,7 @@ export function LifeEventsSidebar() {
                       lineHeight: 1.3,
                     }}
                   >
-                    {evt.label}
+                    {evt.title}
                   </div>
                   <div
                     style={{
@@ -209,17 +240,35 @@ export function LifeEventsSidebar() {
                       fontFamily: "var(--font-geist-mono)",
                     }}
                   >
-                    {evt.meta}
+                    {display.meta}
                   </div>
                 </div>
 
                 {/* Toggle */}
-                <Toggle on={evt.enabled} color={evt.color} />
+                <Toggle on={evt.enabled} color={display.color} />
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Toggle response banner */}
+      {lastToggleResponse && (
+        <div
+          style={{
+            padding: "10px 16px",
+            background: "var(--gold-bg)",
+            borderTop: "1px solid var(--gold)40",
+            fontSize: "11px",
+            color: "var(--gold)",
+            fontWeight: 500,
+            lineHeight: 1.5,
+            flexShrink: 0,
+          }}
+        >
+          {lastToggleResponse}
+        </div>
+      )}
 
       {/* Add event */}
       <div style={{ padding: "0 12px 12px", flexShrink: 0 }}>
