@@ -8,6 +8,7 @@ import { buildPlanFromOnboarding } from "@/lib/buildPlanFromOnboarding";
 import { SliderInput } from "@/components/onboarding/SliderInput";
 import { IncomeRangeSlider } from "@/components/onboarding/IncomeRangeSlider";
 import { TapSelect } from "@/components/onboarding/TapSelect";
+import { OnboardingPreview } from "@/components/onboarding/OnboardingPreview";
 import type { OnboardingInputs } from "@/store/onboardingStore";
 
 const TOTAL_STEPS = 6;
@@ -105,63 +106,82 @@ export default function Stage1Page() {
         <div className="w-12" />
       </div>
 
-      {/* Step content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 py-12">
-        <div className="w-full max-w-lg space-y-10">
-          {currentStep === 0 && (
-            <StepName
-              value={nameInput}
-              onChange={setNameInput}
-              onSubmit={handleNameSubmit}
-            />
-          )}
-          {currentStep === 1 && (
-            <StepAge
-              value={inputs.age ?? 30}
-              onChange={(v) => setField("age", v)}
-            />
-          )}
-          {currentStep === 2 && (
-            <StepIncome
-              value={inputs.householdIncome ?? 120_000}
-              onChange={(v) => setField("householdIncome", v)}
-            />
-          )}
-          {currentStep === 3 && (
-            <StepSavings
-              value={inputs.totalSavings ?? 50_000}
-              onChange={(v) => setField("totalSavings", v)}
-            />
-          )}
-          {currentStep === 4 && (
-            <StepHousing
-              value={inputs.housing ?? "rent"}
-              onChange={(v) => setField("housing", v)}
-            />
-          )}
-          {currentStep === 5 && (
-            <StepRetirementAge
-              value={inputs.retirementAge ?? 62}
-              onChange={(v) => setField("retirementAge", v)}
-            />
-          )}
+      {/* Step content — two-column on large screens */}
+      <div className="flex-1 flex items-center justify-center px-6 py-8">
+        <div
+          className="w-full flex items-center gap-12"
+          style={{
+            maxWidth: currentStep >= 1 ? "900px" : "480px",
+            transition: "max-width 0.5s ease",
+          }}
+        >
+          {/* Left: form */}
+          <div className="flex-1 min-w-0 space-y-10">
+            {currentStep === 0 && (
+              <StepName
+                value={nameInput}
+                onChange={setNameInput}
+                onSubmit={handleNameSubmit}
+              />
+            )}
+            {currentStep === 1 && (
+              <StepAge
+                value={inputs.age ?? 30}
+                onChange={(v) => setField("age", v)}
+              />
+            )}
+            {currentStep === 2 && (
+              <StepIncome
+                value={inputs.householdIncome ?? 120_000}
+                onChange={(v) => setField("householdIncome", v)}
+              />
+            )}
+            {currentStep === 3 && (
+              <StepSavings
+                value={inputs.totalSavings ?? 50_000}
+                onChange={(v) => setField("totalSavings", v)}
+              />
+            )}
+            {currentStep === 4 && (
+              <StepHousing
+                value={inputs.housing ?? "rent"}
+                onChange={(v) => setField("housing", v)}
+              />
+            )}
+            {currentStep === 5 && (
+              <StepRetirementAge
+                value={inputs.retirementAge ?? 62}
+                onChange={(v) => setField("retirementAge", v)}
+              />
+            )}
 
-          {/* CTA */}
-          {currentStep !== 0 && (
-            <button
-              type="button"
-              onClick={advance}
-              disabled={!canAdvance()}
-              className="w-full rounded-2xl py-4 type-body transition-all"
-              style={{
-                background: canAdvance() ? "var(--gold)" : "var(--border)",
-                color: canAdvance() ? "var(--paper)" : "var(--ink-30)",
-                fontWeight: 500,
-                cursor: canAdvance() ? "pointer" : "not-allowed",
-              }}
+            {/* CTA */}
+            {currentStep !== 0 && (
+              <button
+                type="button"
+                onClick={advance}
+                disabled={!canAdvance()}
+                className="w-full rounded-2xl py-4 type-body transition-all"
+                style={{
+                  background: canAdvance() ? "var(--gold)" : "var(--border)",
+                  color: canAdvance() ? "var(--paper)" : "var(--ink-30)",
+                  fontWeight: 500,
+                  cursor: canAdvance() ? "pointer" : "not-allowed",
+                }}
+              >
+                {currentStep === TOTAL_STEPS - 1 ? "Show me my plan →" : "Continue →"}
+              </button>
+            )}
+          </div>
+
+          {/* Right: live preview — large screens only */}
+          {currentStep >= 1 && (
+            <div
+              className="hidden lg:block"
+              style={{ width: "360px", flexShrink: 0 }}
             >
-              {currentStep === TOTAL_STEPS - 1 ? "Show me my plan →" : "Continue →"}
-            </button>
+              <OnboardingPreview inputs={inputs} step={currentStep} />
+            </div>
           )}
         </div>
       </div>

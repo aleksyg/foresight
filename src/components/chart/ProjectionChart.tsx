@@ -22,6 +22,8 @@ interface ProjectionChartProps {
   baselineRows: YearRow[];
   scenarioRows?: YearRow[];
   markers?: EventMarker[];
+  /** Hides title/legend header — for embedding in the onboarding preview. */
+  compact?: boolean;
 }
 
 function formatK(n: number) {
@@ -65,7 +67,7 @@ function EventMarkerLabel({
   );
 }
 
-export function ProjectionChart({ baselineRows, scenarioRows, markers }: ProjectionChartProps) {
+export function ProjectionChart({ baselineRows, scenarioRows, markers, compact }: ProjectionChartProps) {
   const hasScenario = scenarioRows && scenarioRows.length > 0;
   const hasMarkers = markers && markers.length > 0;
 
@@ -79,37 +81,39 @@ export function ProjectionChart({ baselineRows, scenarioRows, markers }: Project
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Title row + legend */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: "16px",
-        }}
-      >
-        <div>
-          <div
-            style={{
-              fontFamily: "var(--font-lora)",
-              fontSize: "15px",
-              fontWeight: 500,
-              color: "var(--ink)",
-            }}
-          >
-            Net Worth Projection
+      {/* Title row + legend — hidden in compact mode */}
+      {!compact && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: "16px",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontFamily: "var(--font-lora)",
+                fontSize: "15px",
+                fontWeight: 500,
+                color: "var(--ink)",
+              }}
+            >
+              Net Worth Projection
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--ink-60)", marginTop: "2px" }}>
+              {hasScenario
+                ? "With your events (solid) vs without (dashed)"
+                : "Without life events"}
+            </div>
           </div>
-          <div style={{ fontSize: "11px", color: "var(--ink-60)", marginTop: "2px" }}>
-            {hasScenario
-              ? "With your events (solid) vs without (dashed)"
-              : "Without life events"}
+          <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
+            <LegendItem color="var(--border)" label="Without events" dashed />
+            {hasScenario && <LegendItem color="var(--gold)" label="With events" />}
           </div>
         </div>
-        <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-          <LegendItem color="var(--border)" label="Without events" dashed />
-          {hasScenario && <LegendItem color="var(--gold)" label="With events" />}
-        </div>
-      </div>
+      )}
 
       {/* Chart */}
       <div style={{ flex: 1, minHeight: 0 }}>
