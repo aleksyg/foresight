@@ -288,6 +288,7 @@ function StepSavings({ value, onChange }: { value: number; onChange: (v: number)
         step={5_000}
         onChange={onChange}
         formatValue={formatSavings}
+        editable
       />
     </div>
   );
