@@ -101,12 +101,12 @@ export function ProjectionChart({ baselineRows, scenarioRows, markers }: Project
           </div>
           <div style={{ fontSize: "11px", color: "var(--ink-60)", marginTop: "2px" }}>
             {hasScenario
-              ? "Scenario (solid) vs Baseline (dashed)"
-              : "Baseline projection"}
+              ? "With your events (solid) vs without (dashed)"
+              : "Without life events"}
           </div>
         </div>
         <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-          <LegendItem color="var(--border)" label="Baseline" dashed />
+          <LegendItem color="var(--border)" label="Without events" dashed />
           {hasScenario && <LegendItem color="var(--gold)" label="With events" />}
         </div>
       </div>

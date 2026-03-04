@@ -849,7 +849,7 @@ export default function PlanPage() {
             value={fmt(projectedAtRetirement)}
             delta={
               scenarioRows.length > 0 && Math.abs(scenarioDelta) >= 1000
-                ? `${scenarioDelta >= 0 ? "▲" : "▼"} ${fmt(Math.abs(scenarioDelta))} vs baseline`
+                ? `${scenarioDelta >= 0 ? "▲" : "▼"} ${fmt(Math.abs(scenarioDelta))} vs without events`
                 : undefined
             }
             deltaPositive={scenarioDelta >= 0}

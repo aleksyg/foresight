@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { usePlanStore } from "@/store/planStore";
 import { simulatePlan } from "@/engine/simulatePlan";
 import { buildOverridesFromLifeEvent } from "@/scenario/lifeEvents/toTargetedOverrides";
@@ -81,6 +82,15 @@ export function LifeEventsSidebar() {
   const { plan, lifeEvents, lastToggleResponse, toggleLifeEvent, setLastToggleResponse } =
     usePlanStore();
 
+  // Auto-dismiss response banner after 4 seconds
+  const [visibleResponse, setVisibleResponse] = useState("");
+  useEffect(() => {
+    if (!lastToggleResponse) return;
+    setVisibleResponse(lastToggleResponse);
+    const t = setTimeout(() => setVisibleResponse(""), 4000);
+    return () => clearTimeout(t);
+  }, [lastToggleResponse]);
+
   const handleToggle = (id: string) => {
     toggleLifeEvent(id);
 
@@ -96,7 +106,7 @@ export function LifeEventsSidebar() {
 
     const baselineRows = simulatePlan(plan, { minEndAge: SIM_MAX_AGE });
     const scenarioRows = runScenario(plan, updatedEvents);
-    const msg = buildToggleResponse(evt.title, nowEnabled, baselineRows, scenarioRows);
+    const msg = buildToggleResponse(evt.title, nowEnabled, plan, baselineRows, scenarioRows);
     setLastToggleResponse(msg);
   };
 
@@ -252,8 +262,8 @@ export function LifeEventsSidebar() {
         })}
       </div>
 
-      {/* Toggle response banner */}
-      {lastToggleResponse && (
+      {/* Toggle response banner — auto-dismisses after 4s */}
+      {visibleResponse && (
         <div
           style={{
             padding: "10px 16px",
@@ -266,7 +276,7 @@ export function LifeEventsSidebar() {
             flexShrink: 0,
           }}
         >
-          {lastToggleResponse}
+          {visibleResponse}
         </div>
       )}
 
