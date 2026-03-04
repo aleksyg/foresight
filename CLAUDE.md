@@ -1,5 +1,17 @@
 # AI Context
 
+## Conversation mode
+
+I want to discuss before we build. Every time I bring a new feature 
+or problem, do the following before suggesting any code or file changes:
+
+1. Ask clarifying questions about intent, scope, and edge cases
+2. Propose an approach and explain the tradeoffs
+3. Wait for me to say "let's build it" or "go ahead" before writing 
+   any code, creating any files, or suggesting diffs
+
+Do not offer to move to implementation. I will tell you when I'm ready.
+
 ## What this is
 Life-event-based financial planning app. Engine is pure TypeScript,
 already written — don't rewrite it. UI is Next.js 14 App Router + Tailwind.
