@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import { usePlanStore } from "@/store/planStore";
 import { simulatePlan } from "@/engine";
 import type { LifeEvent, Mutation } from "@/scenario/lifeEvents/types";
+import { computeMilestones, type MilestoneResult } from "@/scenario/compute/milestoneEtas";
 import { buildOverridesFromLifeEvent } from "@/scenario/lifeEvents/toTargetedOverrides";
 import { buildScenarioYearInputsFromOverrides, extendYearInputsToAge } from "@/rulespec/index";
 import { LifeEventsSidebar } from "@/components/layout/LifeEventsSidebar";
@@ -70,71 +71,6 @@ const EVENT_DISPLAY_META: Record<string, { emoji: string; color: string; bg: str
   sabbatical:  { emoji: "🌍", color: "var(--amber)", bg: "var(--amber-bg)", desc: "One year off at age 45" },
   college:     { emoji: "🎓", color: "var(--plum)",  bg: "var(--plum-bg)",  desc: "Four years college expenses from age 47" },
 };
-
-/* ── Milestone data ──────────────────────────────────────────── */
-
-const MILESTONES = [
-  {
-    id: "emergency",
-    emoji: "🌱",
-    name: "Emergency Fund",
-    amount: "$30K",
-    state: "next" as "next" | "locked" | "reached",
-    eta: "Age 31 · 1y away",
-    progress: 72,
-    why: "Six months of expenses covered — sleep soundly.",
-  },
-  {
-    id: "100k",
-    emoji: "🏆",
-    name: "First $100K",
-    amount: "$100K",
-    state: "locked" as const,
-    eta: "Age 32 · 2y away",
-    progress: 0,
-    why: "The hardest milestone. Compounding starts working for you.",
-  },
-  {
-    id: "downpayment",
-    emoji: "🏡",
-    name: "Down Payment Ready",
-    amount: "$90K",
-    state: "locked" as const,
-    eta: "Age 37 · 7y away",
-    progress: 0,
-    why: "Ready to buy without touching retirement.",
-  },
-  {
-    id: "250k",
-    emoji: "💎",
-    name: "Quarter Million",
-    amount: "$250K",
-    state: "locked" as const,
-    eta: "Age 39 · 9y away",
-    progress: 0,
-    why: "You've built a real financial foundation.",
-  },
-  {
-    id: "500k",
-    emoji: "⚡",
-    name: "Half a Million",
-    amount: "$500K",
-    state: "locked" as const,
-    eta: "Age 44 · 14y away",
-    progress: 0,
-    why: "Your portfolio earns more annually than most people save.",
-  },
-  {
-    id: "1m",
-    emoji: "🌟",
-    name: "Seven Figures",
-    amount: "$1M",
-    state: "locked" as const,
-    eta: "Age 52 · 22y away",
-    progress: 0,
-    why: "The second million comes faster.",
-  },
-];
 
 /* ── Allocation data ─────────────────────────────────────────── */
 
@@ -369,7 +305,18 @@ function DashboardTab({
   );
 }
 
-function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
+function MilestonesTab({
+  milestones,
+  currentNetWorth,
+  startAge,
+}: {
+  milestones: MilestoneResult[];
+  currentNetWorth: number;
+  startAge: number;
+}) {
+  const nextMilestone = milestones.find((m) => m.state === "next");
+  const reachedCount = milestones.filter((m) => m.state === "reached").length;
+
   return (
     <div style={{ padding: "20px 28px 28px" }}>
       {/* Summary bar */}
@@ -420,7 +367,7 @@ function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
               fontWeight: 500,
             }}
           >
-            Next milestone
+            {reachedCount > 0 ? `${reachedCount} reached · next` : "Next milestone"}
           </div>
           <div
             style={{
@@ -430,7 +377,7 @@ function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
               marginTop: "2px",
             }}
           >
-            First $100K
+            {nextMilestone ? `${nextMilestone.name} · ${nextMilestone.amountLabel}` : "All reached 🎉"}
           </div>
         </div>
       </div>
@@ -443,9 +390,14 @@ function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
           gap: "10px",
         }}
       >
-        {MILESTONES.map((m) => {
+        {milestones.map((m) => {
           const isNext = m.state === "next";
           const isReached = m.state === "reached";
+
+          const etaLabel = m.etaAge != null
+            ? `Age ${m.etaAge} · ${m.etaAge - startAge}y away`
+            : "Beyond projection";
+
           return (
             <div
               key={m.id}
@@ -455,7 +407,9 @@ function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
                   : "white",
                 border: isReached
                   ? "1.5px solid var(--gold)"
-                  : "1px solid var(--border)",
+                  : isNext
+                    ? "1.5px solid var(--border)"
+                    : "1px solid var(--border)",
                 borderRadius: "12px",
                 padding: "16px",
                 position: "relative",
@@ -476,8 +430,8 @@ function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
                   background: isReached
                     ? "linear-gradient(135deg, #FFF8E6 0%, #FDECC0 100%)"
                     : "var(--surface)",
-                  opacity: !isNext && !isReached ? 0.5 : 1,
                   filter: !isNext && !isReached ? "grayscale(1)" : "none",
+                  opacity: !isNext && !isReached ? 0.55 : 1,
                 }}
               >
                 {m.emoji}
@@ -488,7 +442,7 @@ function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
                   fontFamily: "var(--font-lora)",
                   fontSize: "14px",
                   fontWeight: 500,
-                  color: "var(--ink)",
+                  color: isReached || isNext ? "var(--ink)" : "var(--ink-60)",
                 }}
               >
                 {m.name}
@@ -497,25 +451,32 @@ function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
                 style={{
                   fontFamily: "var(--font-geist-mono)",
                   fontSize: "13px",
-                  color: isNext ? "var(--gold)" : "var(--ink-60)",
+                  color: isNext ? "var(--gold)" : isReached ? "var(--ink-60)" : "var(--ink-30)",
                   fontWeight: 500,
                   marginTop: "2px",
                 }}
               >
-                {m.amount}
+                {m.amountLabel}
               </div>
 
               {isReached ? (
                 <div style={{ fontSize: "11px", color: "var(--sage)", fontWeight: 500, marginTop: "6px" }}>
-                  ✓ Reached at age 31
+                  ✓ Reached
                 </div>
               ) : (
-                <div style={{ fontSize: "11px", color: "var(--ink-60)", marginTop: "6px" }}>
-                  {m.eta}
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: isNext ? "var(--ink-60)" : "var(--ink-30)",
+                    marginTop: "6px",
+                    fontFamily: "var(--font-geist-mono)",
+                  }}
+                >
+                  {etaLabel}
                 </div>
               )}
 
-              {/* Progress bar — show for next milestone */}
+              {/* Progress bar — shown for next milestone only */}
               {isNext && (
                 <div
                   style={{
@@ -532,6 +493,7 @@ function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
                       width: `${m.progress}%`,
                       background: "var(--gold)",
                       borderRadius: "2px",
+                      transition: "width 0.6s ease",
                     }}
                   />
                 </div>
@@ -540,7 +502,7 @@ function MilestonesTab({ currentNetWorth }: { currentNetWorth: number }) {
               <div
                 style={{
                   fontSize: "11px",
-                  color: "var(--ink-60)",
+                  color: isReached || isNext ? "var(--ink-60)" : "var(--ink-30)",
                   marginTop: "8px",
                   lineHeight: 1.5,
                   fontStyle: "italic",
@@ -783,6 +745,12 @@ export default function PlanPage() {
   const projectedAtRetirement = retireRow?.endNetWorth ?? 0;
   const currentNetWorth = firstRow?.endNetWorth ?? 0;
 
+  const milestones = useMemo(
+    () => computeMilestones(plan, rows, lifeEvents),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plan, rows, lifeEvents],
+  );
+
   const baseRetireNW = baselineRows.find((r) => r.age === plan.endAge)?.endNetWorth ?? 0;
   const scenarioDelta = projectedAtRetirement - baseRetireNW;
 
@@ -914,7 +882,13 @@ export default function PlanPage() {
             />
           )}
           {activeTab === "allocation" && <AllocationTab />}
-          {activeTab === "milestones" && <MilestonesTab currentNetWorth={currentNetWorth} />}
+          {activeTab === "milestones" && (
+            <MilestonesTab
+              milestones={milestones}
+              currentNetWorth={currentNetWorth}
+              startAge={plan.startAge}
+            />
+          )}
         </div>
       </main>
 
