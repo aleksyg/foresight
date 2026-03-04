@@ -12,8 +12,8 @@ export function buildPlanFromOnboarding(inputs: OnboardingInputs): PlanState {
     | "07" | "08" | "09" | "10" | "11" | "12";
   const asOfYearMonth = `${now.getFullYear()}-${month}` as PlanState["asOfYearMonth"];
 
-  // Estimate lifestyle spend as ~30% of gross income (rough sketch heuristic)
-  const lifestyleMonthly = Math.round((inputs.householdIncome * 0.30) / 12);
+  // Estimate lifestyle spend as ~25% of gross income (rough sketch heuristic)
+  const lifestyleMonthly = Math.round((inputs.householdIncome * 0.25) / 12);
 
   return {
     asOfYearMonth,
@@ -45,7 +45,7 @@ export function buildPlanFromOnboarding(inputs: OnboardingInputs): PlanState {
       housing:
         inputs.housing === "own"
           ? { status: "own", monthlyPaymentPITI: Math.round(lifestyleMonthly * 0.4) }
-          : { status: "rent", monthlyRent: Math.round(lifestyleMonthly * 0.35) },
+          : { status: "rent", monthlyRent: Math.round(inputs.householdIncome / 40) },
     },
 
     expenses: {
