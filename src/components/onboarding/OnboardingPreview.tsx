@@ -30,6 +30,15 @@ export function OnboardingPreview({ inputs, step }: OnboardingPreviewProps) {
   const housing = inputs.housing ?? "rent";
   const retirementAge = inputs.retirementAge ?? 62;
 
+  const monthlyRent = inputs.monthlyRent;
+  const lifestyleMonthly = inputs.lifestyleMonthly;
+  const hasPartner = inputs.hasPartner;
+  const partnerAge = inputs.partnerAge;
+  const partnerIncome = inputs.partnerIncome;
+  const employerMatchPct = inputs.employerMatchPct;
+  const employerMatchUpToPct = inputs.employerMatchUpToPct;
+  const monthlyMortgage = inputs.monthlyMortgage;
+
   const rows = useMemo(() => {
     const plan = buildPlanFromOnboarding({
       firstName: "there",
@@ -38,9 +47,19 @@ export function OnboardingPreview({ inputs, step }: OnboardingPreviewProps) {
       totalSavings,
       housing,
       retirementAge,
+      monthlyRent,
+      lifestyleMonthly,
+      hasPartner,
+      partnerAge,
+      partnerIncome,
+      employerMatchPct,
+      employerMatchUpToPct,
+      monthlyMortgage,
     });
     return simulatePlan(plan, { minEndAge: SIM_MAX_AGE });
-  }, [age, householdIncome, totalSavings, housing, retirementAge]);
+  }, [age, householdIncome, totalSavings, housing, retirementAge,
+      monthlyRent, lifestyleMonthly, hasPartner, partnerAge, partnerIncome,
+      employerMatchPct, employerMatchUpToPct, monthlyMortgage]);
 
   const retirementRow = rows.find((r) => r.age === retirementAge) ?? rows[rows.length - 1];
   const projectedNW = retirementRow?.endNetWorth ?? 0;

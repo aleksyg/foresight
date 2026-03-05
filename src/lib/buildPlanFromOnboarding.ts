@@ -12,8 +12,18 @@ export function buildPlanFromOnboarding(inputs: OnboardingInputs): PlanState {
     | "07" | "08" | "09" | "10" | "11" | "12";
   const asOfYearMonth = `${now.getFullYear()}-${month}` as PlanState["asOfYearMonth"];
 
-  // Estimate lifestyle spend as ~25% of gross income (rough sketch heuristic)
-  const lifestyleMonthly = Math.round((inputs.householdIncome * 0.25) / 12);
+  const lifestyleMonthly =
+    inputs.lifestyleMonthly ?? Math.round((inputs.householdIncome * 0.25) / 12);
+
+  const monthlyRent =
+    inputs.monthlyRent ?? Math.round(inputs.householdIncome / 40);
+
+  const monthlyMortgage =
+    inputs.monthlyMortgage ?? Math.round(inputs.householdIncome / 40);
+
+  const employerMatchPct = inputs.employerMatchPct ?? 50;
+  const employerMatchUpToPct = inputs.employerMatchUpToPct ?? 6;
+  const hasPartner = inputs.hasPartner ?? false;
 
   return {
     asOfYearMonth,
@@ -31,21 +41,39 @@ export function buildPlanFromOnboarding(inputs: OnboardingInputs): PlanState {
             hasPlan: true,
             employeePreTaxContributionPct: 6,
             hasEmployerMatch: true,
-            employerMatchPct: 50,
-            employerMatchUpToPct: 6,
+            employerMatchPct,
+            employerMatchUpToPct,
           },
           incomeGrowthRate: 0.03,
         },
       },
-      hasPartner: false,
+      hasPartner,
+      partner: hasPartner
+        ? {
+            age: inputs.partnerAge ?? inputs.age,
+            income: {
+              baseAnnual: inputs.partnerIncome ?? 80_000,
+              hasBonus: false,
+              preTaxDeductionsMonthly: 0,
+              retirement: {
+                hasPlan: true,
+                employeePreTaxContributionPct: 6,
+                hasEmployerMatch: true,
+                employerMatchPct: 50,
+                employerMatchUpToPct: 6,
+              },
+              incomeGrowthRate: 0.03,
+            },
+          }
+        : undefined,
       tax: {
-        filingStatus: "single",
+        filingStatus: hasPartner ? "marriedJoint" : "single",
       },
       hasChildren: false,
       housing:
         inputs.housing === "own"
-          ? { status: "own", monthlyPaymentPITI: Math.round(lifestyleMonthly * 0.4) }
-          : { status: "rent", monthlyRent: Math.round(inputs.householdIncome / 40) },
+          ? { status: "own", monthlyPaymentPITI: monthlyMortgage }
+          : { status: "rent", monthlyRent },
     },
 
     expenses: {

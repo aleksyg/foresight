@@ -9,6 +9,15 @@ export interface OnboardingInputs {
   totalSavings: number;
   housing: HousingStatus;
   retirementAge: number;
+  // optional assumption overrides
+  monthlyRent?: number;
+  lifestyleMonthly?: number;
+  hasPartner?: boolean;
+  partnerAge?: number;
+  partnerIncome?: number;
+  employerMatchPct?: number;
+  employerMatchUpToPct?: number;
+  monthlyMortgage?: number;
 }
 
 interface OnboardingStore {

@@ -3,13 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useOnboardingStore } from "@/store/onboardingStore";
+import type { OnboardingInputs } from "@/store/onboardingStore";
 import { usePlanStore } from "@/store/planStore";
 import { buildPlanFromOnboarding } from "@/lib/buildPlanFromOnboarding";
 import { SliderInput } from "@/components/onboarding/SliderInput";
 import { IncomeRangeSlider } from "@/components/onboarding/IncomeRangeSlider";
 import { TapSelect } from "@/components/onboarding/TapSelect";
 import { OnboardingPreview } from "@/components/onboarding/OnboardingPreview";
-import type { OnboardingInputs } from "@/store/onboardingStore";
+import { InlineEditable } from "@/components/onboarding/InlineEditable";
+import { InlineSelect } from "@/components/onboarding/InlineSelect";
 
 const TOTAL_STEPS = 6;
 
@@ -35,7 +37,6 @@ export default function Stage1Page() {
     if (currentStep < TOTAL_STEPS - 1) {
       setStep(currentStep + 1);
     } else {
-      // Final step — build plan and go
       const completeInputs: OnboardingInputs = {
         firstName: inputs.firstName ?? "there",
         age: inputs.age ?? 30,
@@ -43,6 +44,14 @@ export default function Stage1Page() {
         totalSavings: inputs.totalSavings ?? 50_000,
         housing: inputs.housing ?? "rent",
         retirementAge: inputs.retirementAge ?? 62,
+        monthlyRent: inputs.monthlyRent,
+        lifestyleMonthly: inputs.lifestyleMonthly,
+        hasPartner: inputs.hasPartner,
+        partnerAge: inputs.partnerAge,
+        partnerIncome: inputs.partnerIncome,
+        employerMatchPct: inputs.employerMatchPct,
+        employerMatchUpToPct: inputs.employerMatchUpToPct,
+        monthlyMortgage: inputs.monthlyMortgage,
       };
       const plan = buildPlanFromOnboarding(completeInputs);
       setPlan(plan);
@@ -134,18 +143,24 @@ export default function Stage1Page() {
               <StepIncome
                 value={inputs.householdIncome ?? 120_000}
                 onChange={(v) => setField("householdIncome", v)}
+                inputs={inputs}
+                setField={setField}
               />
             )}
             {currentStep === 3 && (
               <StepSavings
                 value={inputs.totalSavings ?? 50_000}
                 onChange={(v) => setField("totalSavings", v)}
+                inputs={inputs}
+                setField={setField}
               />
             )}
             {currentStep === 4 && (
               <StepHousing
                 value={inputs.housing ?? "rent"}
                 onChange={(v) => setField("housing", v)}
+                inputs={inputs}
+                setField={setField}
               />
             )}
             {currentStep === 5 && (
@@ -274,7 +289,23 @@ function StepAge({ value, onChange }: { value: number; onChange: (v: number) => 
   );
 }
 
-function StepIncome({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function StepIncome({
+  value,
+  onChange,
+  inputs,
+  setField,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  inputs: Partial<OnboardingInputs>;
+  setField: <K extends keyof OnboardingInputs>(key: K, value: OnboardingInputs[K]) => void;
+}) {
+  const defaultRent = Math.round(value / 40);
+  const defaultLifestyle = Math.round((value * 0.25) / 12);
+  const rent = inputs.monthlyRent ?? defaultRent;
+  const lifestyle = inputs.lifestyleMonthly ?? defaultLifestyle;
+  const hasPartner = inputs.hasPartner ?? false;
+
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -286,11 +317,100 @@ function StepIncome({ value, onChange }: { value: number; onChange: (v: number) 
         </p>
       </div>
       <IncomeRangeSlider value={value} onChange={onChange} />
+
+      <AssumptionBlock>
+        <p>
+          {"We'll assume "}
+          <InlineEditable
+            value={rent}
+            onChange={(v) => setField("monthlyRent", v)}
+            format={(n) => `$${n.toLocaleString()}/mo`}
+            min={0}
+            max={20_000}
+          />
+          {" for rent and "}
+          <InlineEditable
+            value={lifestyle}
+            onChange={(v) => setField("lifestyleMonthly", v)}
+            format={(n) => `$${n.toLocaleString()}/mo`}
+            min={0}
+            max={50_000}
+          />
+          {" on other living expenses."}
+        </p>
+        <p style={{ marginTop: "6px" }}>
+          {"We'll assume this is "}
+          <InlineSelect
+            value={hasPartner ? "partner" : "solo"}
+            onChange={(v) => {
+              const newHasPartner = v === "partner";
+              setField("hasPartner", newHasPartner);
+              if (!newHasPartner) {
+                setField("partnerAge", undefined);
+                setField("partnerIncome", undefined);
+              }
+            }}
+            options={[
+              { value: "solo", label: "just your income — no partner" },
+              { value: "partner", label: "you have a partner" },
+            ]}
+          />
+          {hasPartner && (
+            <>
+              {" (Age "}
+              <InlineEditable
+                value={inputs.partnerAge ?? (inputs.age ?? 30)}
+                onChange={(v) => setField("partnerAge", v)}
+                format={(n) => String(n)}
+                min={18}
+                max={80}
+              />
+              {")"}
+            </>
+          )}
+          {"."}
+        </p>
+
+        {hasPartner && (
+          <div
+            style={{
+              marginTop: "14px",
+              background: "var(--surface)",
+              borderRadius: "10px",
+              padding: "12px 14px",
+            }}
+          >
+            <div
+              className="type-label-caps"
+              style={{ color: "var(--ink-60)", marginBottom: "10px" }}
+            >
+              Partner&apos;s income
+            </div>
+            <IncomeRangeSlider
+              value={inputs.partnerIncome ?? 80_000}
+              onChange={(v) => setField("partnerIncome", v)}
+            />
+          </div>
+        )}
+      </AssumptionBlock>
     </div>
   );
 }
 
-function StepSavings({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function StepSavings({
+  value,
+  onChange,
+  inputs,
+  setField,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  inputs: Partial<OnboardingInputs>;
+  setField: <K extends keyof OnboardingInputs>(key: K, value: OnboardingInputs[K]) => void;
+}) {
+  const matchPct = inputs.employerMatchPct ?? 50;
+  const matchUpTo = inputs.employerMatchUpToPct ?? 6;
+
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -310,6 +430,28 @@ function StepSavings({ value, onChange }: { value: number; onChange: (v: number)
         formatValue={formatSavings}
         editable
       />
+
+      <AssumptionBlock>
+        <p>
+          {"We'll assume your employer matches "}
+          <InlineEditable
+            value={matchPct}
+            onChange={(v) => setField("employerMatchPct", v)}
+            format={(n) => `${n}%`}
+            min={0}
+            max={100}
+          />
+          {" of contributions up to "}
+          <InlineEditable
+            value={matchUpTo}
+            onChange={(v) => setField("employerMatchUpToPct", v)}
+            format={(n) => `${n}%`}
+            min={0}
+            max={20}
+          />
+          {" of your salary."}
+        </p>
+      </AssumptionBlock>
     </div>
   );
 }
@@ -317,10 +459,17 @@ function StepSavings({ value, onChange }: { value: number; onChange: (v: number)
 function StepHousing({
   value,
   onChange,
+  inputs,
+  setField,
 }: {
   value: "rent" | "own";
   onChange: (v: "rent" | "own") => void;
+  inputs: Partial<OnboardingInputs>;
+  setField: <K extends keyof OnboardingInputs>(key: K, value: OnboardingInputs[K]) => void;
 }) {
+  const householdIncome = inputs.householdIncome ?? 120_000;
+  const mortgage = inputs.monthlyMortgage ?? Math.round(householdIncome / 40);
+
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -336,6 +485,22 @@ function StepHousing({
           { value: "own", label: "Own", emoji: "🏠", sublabel: "Have a mortgage or own outright" },
         ]}
       />
+
+      {value === "own" && (
+        <AssumptionBlock>
+          <p>
+            {"We'll estimate your monthly mortgage payment at "}
+            <InlineEditable
+              value={mortgage}
+              onChange={(v) => setField("monthlyMortgage", v)}
+              format={(n) => `$${n.toLocaleString()}/mo`}
+              min={0}
+              max={20_000}
+            />
+            {"."}
+          </p>
+        </AssumptionBlock>
+      )}
     </div>
   );
 }
@@ -364,6 +529,30 @@ function StepRetirementAge({
         onChange={onChange}
         formatValue={(v) => `Age ${v}`}
       />
+    </div>
+  );
+}
+
+function AssumptionBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        marginTop: "0",
+        paddingTop: "20px",
+        borderTop: "1px solid var(--border)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "11px",
+          color: "var(--ink-60)",
+          fontFamily: "var(--font-geist-sans)",
+          lineHeight: 1.7,
+          fontWeight: 300,
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
