@@ -38,6 +38,19 @@ export function OnboardingPreview({ inputs, step }: OnboardingPreviewProps) {
   const employerMatchPct = inputs.employerMatchPct;
   const employerMatchUpToPct = inputs.employerMatchUpToPct;
   const monthlyMortgage = inputs.monthlyMortgage;
+  const cashSavings = inputs.cashSavings;
+  const retirementSavings = inputs.retirementSavings;
+  const brokerageSavings = inputs.brokerageSavings;
+  const homeValue = inputs.homeValue;
+  const hasMortgage = inputs.hasMortgage;
+  const mortgageBalance = inputs.mortgageBalance;
+  const has401k = inputs.has401k;
+  const contributionPct = inputs.contributionPct;
+  const hasEmployerMatch = inputs.hasEmployerMatch;
+  const hasDebt = inputs.hasDebt;
+  const debtBalance = inputs.debtBalance;
+  const hasChildren = inputs.hasChildren;
+  const childrenMonthlyCost = inputs.childrenMonthlyCost;
 
   const rows = useMemo(() => {
     const plan = buildPlanFromOnboarding({
@@ -55,17 +68,37 @@ export function OnboardingPreview({ inputs, step }: OnboardingPreviewProps) {
       employerMatchPct,
       employerMatchUpToPct,
       monthlyMortgage,
+      cashSavings,
+      retirementSavings,
+      brokerageSavings,
+      homeValue,
+      hasMortgage,
+      mortgageBalance,
+      has401k,
+      contributionPct,
+      hasEmployerMatch,
+      hasDebt,
+      debtBalance,
+      hasChildren,
+      childrenMonthlyCost,
     });
     return simulatePlan(plan, { minEndAge: SIM_MAX_AGE });
-  }, [age, householdIncome, totalSavings, housing, retirementAge,
-      monthlyRent, lifestyleMonthly, hasPartner, partnerAge, partnerIncome,
-      employerMatchPct, employerMatchUpToPct, monthlyMortgage]);
+  }, [
+    age, householdIncome, totalSavings, housing, retirementAge,
+    monthlyRent, lifestyleMonthly, hasPartner, partnerAge, partnerIncome,
+    employerMatchPct, employerMatchUpToPct, monthlyMortgage,
+    cashSavings, retirementSavings, brokerageSavings,
+    homeValue, hasMortgage, mortgageBalance,
+    has401k, contributionPct, hasEmployerMatch,
+    hasDebt, debtBalance, hasChildren, childrenMonthlyCost,
+  ]);
 
   const retirementRow = rows.find((r) => r.age === retirementAge) ?? rows[rows.length - 1];
   const projectedNW = retirementRow?.endNetWorth ?? 0;
   const monthlyTakeHome = rows[0] ? Math.round(rows[0].afterTaxIncome / 12) : 0;
   const housingMonthly = rows[0]?.housingMonthly ?? 0;
   const yearsToRetire = retirementAge - age;
+  const effContrib = contributionPct ?? 6;
 
   let eyebrow: string;
   let primary: string;
@@ -91,6 +124,10 @@ export function OnboardingPreview({ inputs, step }: OnboardingPreviewProps) {
     eyebrow = `projected at age ${retirementAge}`;
     primary = fmt(projectedNW);
     detail = `${housingLabel} · ${yearsToRetire} years to grow`;
+  } else if (step === 5) {
+    eyebrow = `projected at age ${retirementAge}`;
+    primary = fmt(projectedNW);
+    detail = `${effContrib}% contributions · ${yearsToRetire} years to grow`;
   } else {
     eyebrow = `projected at age ${retirementAge}`;
     primary = fmt(projectedNW);

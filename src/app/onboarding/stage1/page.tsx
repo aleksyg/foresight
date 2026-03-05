@@ -12,17 +12,26 @@ import { TapSelect } from "@/components/onboarding/TapSelect";
 import { OnboardingPreview } from "@/components/onboarding/OnboardingPreview";
 import { InlineEditable } from "@/components/onboarding/InlineEditable";
 import { InlineSelect } from "@/components/onboarding/InlineSelect";
+import { AgeRangeSlider } from "@/components/onboarding/AgeRangeSlider";
 
-const TOTAL_STEPS = 6;
-
-function formatAge(n: number) {
-  return `${n}`;
-}
+const TOTAL_STEPS = 7;
 
 function formatSavings(n: number) {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1000) return `$${Math.round(n / 1000)}K`;
   return `$${n}`;
+}
+
+function parseMoney(s: string): number | null {
+  const clean = s.trim().replace(/[$,\s]/g, "");
+  if (!clean) return null;
+  let numStr = clean;
+  let multiplier = 1;
+  if (/[Kk]$/.test(clean)) { numStr = clean.slice(0, -1); multiplier = 1_000; }
+  else if (/[Mm]$/.test(clean)) { numStr = clean.slice(0, -1); multiplier = 1_000_000; }
+  const n = parseFloat(numStr);
+  if (!isFinite(n) || n < 0) return null;
+  return Math.round(n * multiplier);
 }
 
 export default function Stage1Page() {
@@ -34,6 +43,19 @@ export default function Stage1Page() {
   const currentStep = step;
 
   const advance = () => {
+    if (currentStep === 3) {
+      // Fold unallocated savings into cash before advancing
+      const total = inputs.totalSavings ?? 50_000;
+      const ret = inputs.retirementSavings ?? 0;
+      const bro = inputs.brokerageSavings ?? 0;
+      const cash = inputs.cashSavings ?? 0;
+      const allocated = ret + bro + cash;
+      const remainder = total - allocated;
+      if (remainder > 0 && allocated > 0) {
+        setField("cashSavings", cash + remainder);
+      }
+    }
+
     if (currentStep < TOTAL_STEPS - 1) {
       setStep(currentStep + 1);
     } else {
@@ -52,6 +74,19 @@ export default function Stage1Page() {
         employerMatchPct: inputs.employerMatchPct,
         employerMatchUpToPct: inputs.employerMatchUpToPct,
         monthlyMortgage: inputs.monthlyMortgage,
+        cashSavings: inputs.cashSavings,
+        retirementSavings: inputs.retirementSavings,
+        brokerageSavings: inputs.brokerageSavings,
+        homeValue: inputs.homeValue,
+        hasMortgage: inputs.hasMortgage,
+        mortgageBalance: inputs.mortgageBalance,
+        has401k: inputs.has401k,
+        contributionPct: inputs.contributionPct,
+        hasEmployerMatch: inputs.hasEmployerMatch,
+        hasDebt: inputs.hasDebt,
+        debtBalance: inputs.debtBalance,
+        hasChildren: inputs.hasChildren,
+        childrenMonthlyCost: inputs.childrenMonthlyCost,
       };
       const plan = buildPlanFromOnboarding(completeInputs);
       setPlan(plan);
@@ -80,12 +115,7 @@ export default function Stage1Page() {
       style={{ background: "var(--paper)" }}
     >
       {/* Progress bar */}
-      <div
-        className="h-0.5 transition-all duration-500"
-        style={{
-          background: "var(--border)",
-        }}
-      >
+      <div className="h-0.5" style={{ background: "var(--border)" }}>
         <div
           className="h-full transition-all duration-500"
           style={{
@@ -115,7 +145,7 @@ export default function Stage1Page() {
         <div className="w-12" />
       </div>
 
-      {/* Step content — two-column on large screens */}
+      {/* Step content */}
       <div className="flex-1 flex items-center justify-center px-6 py-8">
         <div
           className="w-full flex items-center gap-12"
@@ -134,9 +164,11 @@ export default function Stage1Page() {
               />
             )}
             {currentStep === 1 && (
-              <StepAge
-                value={inputs.age ?? 30}
-                onChange={(v) => setField("age", v)}
+              <StepAgeRange
+                age={inputs.age ?? 30}
+                retirementAge={inputs.retirementAge ?? 62}
+                onAgeChange={(v) => setField("age", v)}
+                onRetirementAgeChange={(v) => setField("retirementAge", v)}
               />
             )}
             {currentStep === 2 && (
@@ -164,9 +196,15 @@ export default function Stage1Page() {
               />
             )}
             {currentStep === 5 && (
-              <StepRetirementAge
-                value={inputs.retirementAge ?? 62}
-                onChange={(v) => setField("retirementAge", v)}
+              <StepRetirement401k
+                inputs={inputs}
+                setField={setField}
+              />
+            )}
+            {currentStep === 6 && (
+              <StepExpenses
+                inputs={inputs}
+                setField={setField}
               />
             )}
 
@@ -189,7 +227,7 @@ export default function Stage1Page() {
             )}
           </div>
 
-          {/* Right: live preview — large screens only */}
+          {/* Right: live preview */}
           {currentStep >= 1 && (
             <div
               className="hidden lg:block"
@@ -204,7 +242,7 @@ export default function Stage1Page() {
   );
 }
 
-/* ── Individual step components ────────────────────────────── */
+/* ── Step components ────────────────────────────────────────── */
 
 function StepName({
   value,
@@ -267,7 +305,17 @@ function StepName({
   );
 }
 
-function StepAge({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function StepAgeRange({
+  age,
+  retirementAge,
+  onAgeChange,
+  onRetirementAgeChange,
+}: {
+  age: number;
+  retirementAge: number;
+  onAgeChange: (v: number) => void;
+  onRetirementAgeChange: (v: number) => void;
+}) {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -275,15 +323,14 @@ function StepAge({ value, onChange }: { value: number; onChange: (v: number) => 
           How old are you?
         </h2>
         <p className="type-body" style={{ color: "var(--ink-30)" }}>
-          Sets the starting point for your projection.
+          Drag both handles to set your age and retirement target.
         </p>
       </div>
-      <SliderInput
-        value={value}
-        min={22}
-        max={65}
-        onChange={onChange}
-        formatValue={formatAge}
+      <AgeRangeSlider
+        minAge={age}
+        maxAge={retirementAge}
+        onMinChange={onAgeChange}
+        onMaxChange={onRetirementAgeChange}
       />
     </div>
   );
@@ -310,10 +357,10 @@ function StepIncome({
     <div className="space-y-8">
       <div className="space-y-2">
         <h2 className="type-title" style={{ color: "var(--ink-60)" }}>
-          Household income?
+          Your income?
         </h2>
         <p className="type-body" style={{ color: "var(--ink-30)" }}>
-          Total annual — rough is fine.
+          Just yours for now — rough is fine.
         </p>
       </div>
       <IncomeRangeSlider value={value} onChange={onChange} />
@@ -408,8 +455,43 @@ function StepSavings({
   inputs: Partial<OnboardingInputs>;
   setField: <K extends keyof OnboardingInputs>(key: K, value: OnboardingInputs[K]) => void;
 }) {
-  const matchPct = inputs.employerMatchPct ?? 50;
-  const matchUpTo = inputs.employerMatchUpToPct ?? 6;
+  const retirement = inputs.retirementSavings ?? Math.round(value * 0.7);
+  const brokerage = inputs.brokerageSavings ?? 0;
+  const cash = inputs.cashSavings ?? Math.max(0, value - retirement - brokerage);
+
+  const allocated = retirement + brokerage + cash;
+  const remainder = value - allocated;
+
+  const anyBucketSet =
+    inputs.retirementSavings !== undefined ||
+    inputs.brokerageSavings !== undefined ||
+    inputs.cashSavings !== undefined;
+
+  const retirementActive = anyBucketSet ? retirement > 0 : true;
+  const brokerageActive = brokerage > 0;
+  const cashActive = cash > 0;
+
+  const toggleChip = (key: "cashSavings" | "retirementSavings" | "brokerageSavings", currentVal: number) => {
+    if (currentVal > 0) {
+      setField(key, 0);
+    } else {
+      // Pre-populate with remainder or a portion
+      const suggested = Math.max(0, value - (key === "cashSavings" ? 0 : cash) - (key === "retirementSavings" ? 0 : retirement) - (key === "brokerageSavings" ? 0 : brokerage));
+      setField(key, suggested > 0 ? suggested : Math.round(value * 0.1));
+    }
+  };
+
+  const chipStyle = (active: boolean): React.CSSProperties => ({
+    border: `1px solid ${active ? "var(--gold)" : "var(--border)"}`,
+    borderRadius: "999px",
+    padding: "6px 14px",
+    fontSize: "13px",
+    fontFamily: "var(--font-geist-sans)",
+    background: active ? "var(--gold-bg)" : "transparent",
+    color: active ? "var(--gold)" : "var(--ink-60)",
+    cursor: "pointer",
+    transition: "all 0.15s",
+  });
 
   return (
     <div className="space-y-8">
@@ -426,32 +508,161 @@ function StepSavings({
         min={0}
         max={500_000}
         step={5_000}
-        onChange={onChange}
+        onChange={(v) => {
+          onChange(v);
+          // Reset buckets when total changes so they recompute from defaults
+          if (anyBucketSet) {
+            setField("retirementSavings", undefined);
+            setField("cashSavings", undefined);
+            setField("brokerageSavings", undefined);
+          }
+        }}
         formatValue={formatSavings}
         editable
       />
 
-      <AssumptionBlock>
-        <p>
-          {"We'll assume your employer matches "}
-          <InlineEditable
-            value={matchPct}
-            onChange={(v) => setField("employerMatchPct", v)}
-            format={(n) => `${n}%`}
-            min={0}
-            max={100}
-          />
-          {" of contributions up to "}
-          <InlineEditable
-            value={matchUpTo}
-            onChange={(v) => setField("employerMatchUpToPct", v)}
-            format={(n) => `${n}%`}
-            min={0}
-            max={20}
-          />
-          {" of your salary."}
+      {/* Bucket split */}
+      <div
+        style={{
+          paddingTop: "20px",
+          borderTop: "1px solid var(--border)",
+        }}
+      >
+        <p
+          className="type-label-caps"
+          style={{ color: "var(--ink-60)", marginBottom: "12px" }}
+        >
+          Where is your money?
         </p>
-      </AssumptionBlock>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "16px" }}>
+          <button
+            type="button"
+            style={chipStyle(retirementActive)}
+            onClick={() => toggleChip("retirementSavings", retirement)}
+          >
+            📈 Retirement accounts
+          </button>
+          <button
+            type="button"
+            style={chipStyle(cashActive)}
+            onClick={() => toggleChip("cashSavings", cash)}
+          >
+            💵 Cash &amp; savings
+          </button>
+          <button
+            type="button"
+            style={chipStyle(brokerageActive)}
+            onClick={() => toggleChip("brokerageSavings", brokerage)}
+          >
+            📊 Taxable investments
+          </button>
+        </div>
+
+        {/* Bucket amount inputs */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {retirementActive && (
+            <BucketRow
+              label="Retirement accounts"
+              value={retirement}
+              onChange={(v) => setField("retirementSavings", v)}
+            />
+          )}
+          {cashActive && (
+            <BucketRow
+              label="Cash & savings"
+              value={cash}
+              onChange={(v) => setField("cashSavings", v)}
+            />
+          )}
+          {brokerageActive && (
+            <BucketRow
+              label="Taxable investments"
+              value={brokerage}
+              onChange={(v) => setField("brokerageSavings", v)}
+            />
+          )}
+        </div>
+
+        {/* Remainder */}
+        {anyBucketSet && remainder !== 0 && (
+          <p
+            style={{
+              marginTop: "10px",
+              fontSize: "12px",
+              fontFamily: "var(--font-geist-sans)",
+              color: remainder > 0 ? "var(--ink-30)" : "var(--rose, #e05c5c)",
+            }}
+          >
+            {remainder > 0
+              ? `${formatSavings(remainder)} unallocated`
+              : `${formatSavings(Math.abs(remainder))} over total`}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BucketRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const [text, setText] = useState<string | null>(null);
+
+  const commit = (s: string) => {
+    const parsed = parseMoney(s);
+    if (parsed !== null && parsed >= 0) onChange(parsed);
+    setText(null);
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "6px 10px",
+        background: "var(--surface)",
+        borderRadius: "8px",
+      }}
+    >
+      <span
+        style={{
+          fontSize: "12px",
+          fontFamily: "var(--font-geist-sans)",
+          color: "var(--ink-60)",
+        }}
+      >
+        {label}
+      </span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={text ?? formatSavings(value)}
+        onFocus={() => setText(formatSavings(value))}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+        style={{
+          fontFamily: "var(--font-geist-mono)",
+          fontSize: "13px",
+          fontWeight: 500,
+          color: "var(--gold)",
+          background: "transparent",
+          border: "none",
+          borderBottom: text !== null ? "1px solid var(--gold)" : "1px solid transparent",
+          outline: "none",
+          textAlign: "right",
+          width: "80px",
+          transition: "border-color 0.15s",
+        }}
+      />
     </div>
   );
 }
@@ -468,7 +679,9 @@ function StepHousing({
   setField: <K extends keyof OnboardingInputs>(key: K, value: OnboardingInputs[K]) => void;
 }) {
   const householdIncome = inputs.householdIncome ?? 120_000;
-  const mortgage = inputs.monthlyMortgage ?? Math.round(householdIncome / 40);
+  const homeValue = inputs.homeValue ?? Math.round(householdIncome * 3);
+  const hasMortgage = inputs.hasMortgage ?? true;
+  const mortgageBalance = inputs.mortgageBalance ?? Math.round(homeValue * 0.75);
 
   return (
     <div className="space-y-8">
@@ -489,14 +702,36 @@ function StepHousing({
       {value === "own" && (
         <AssumptionBlock>
           <p>
-            {"We'll estimate your monthly mortgage payment at "}
+            {"We'll assume your home is worth "}
             <InlineEditable
-              value={mortgage}
-              onChange={(v) => setField("monthlyMortgage", v)}
-              format={(n) => `$${n.toLocaleString()}/mo`}
-              min={0}
-              max={20_000}
+              value={homeValue}
+              onChange={(v) => setField("homeValue", v)}
+              format={(n) => `$${n.toLocaleString()}`}
+              min={50_000}
+              max={5_000_000}
             />
+            {" and you "}
+            <InlineSelect
+              value={hasMortgage ? "mortgage" : "outright"}
+              onChange={(v) => setField("hasMortgage", v === "mortgage")}
+              options={[
+                { value: "mortgage", label: "have a mortgage" },
+                { value: "outright", label: "own outright" },
+              ]}
+            />
+            {hasMortgage && (
+              <>
+                {" with "}
+                <InlineEditable
+                  value={mortgageBalance}
+                  onChange={(v) => setField("mortgageBalance", v)}
+                  format={(n) => `$${n.toLocaleString()}`}
+                  min={0}
+                  max={5_000_000}
+                />
+                {" remaining"}
+              </>
+            )}
             {"."}
           </p>
         </AssumptionBlock>
@@ -505,43 +740,203 @@ function StepHousing({
   );
 }
 
-function StepRetirementAge({
-  value,
-  onChange,
+function StepRetirement401k({
+  inputs,
+  setField,
 }: {
-  value: number;
-  onChange: (v: number) => void;
+  inputs: Partial<OnboardingInputs>;
+  setField: <K extends keyof OnboardingInputs>(key: K, value: OnboardingInputs[K]) => void;
 }) {
+  const has401k = inputs.has401k ?? true;
+  const contributionPct = inputs.contributionPct ?? 6;
+  const hasMatch = inputs.hasEmployerMatch ?? true;
+  const matchPct = inputs.employerMatchPct ?? 50;
+  const matchUpTo = inputs.employerMatchUpToPct ?? 6;
+
   return (
     <div className="space-y-8">
       <div className="space-y-2">
         <h2 className="type-title" style={{ color: "var(--ink-60)" }}>
-          When do you want to retire?
+          Do you have a 401(k)?
         </h2>
         <p className="type-body" style={{ color: "var(--ink-30)" }}>
-          This sets your financial independence target.
+          Or a 403(b), or similar employer retirement plan.
         </p>
       </div>
-      <SliderInput
-        value={value}
-        min={50}
-        max={70}
-        onChange={onChange}
-        formatValue={(v) => `Age ${v}`}
+      <TapSelect
+        value={has401k ? "yes" : "no"}
+        onChange={(v) => setField("has401k", v === "yes")}
+        options={[
+          { value: "yes", label: "I have one", emoji: "✅", sublabel: "401(k), 403(b), or similar" },
+          { value: "no", label: "I don't", emoji: "—", sublabel: "No employer retirement plan" },
+        ]}
       />
+
+      {has401k && (
+        <>
+          <div className="space-y-3">
+            <p className="type-label-caps" style={{ color: "var(--ink-60)" }}>
+              What % are you contributing?
+            </p>
+            <SliderInput
+              value={contributionPct}
+              min={0}
+              max={30}
+              step={1}
+              onChange={(v) => setField("contributionPct", v)}
+              formatValue={(v) => `${v}%`}
+            />
+          </div>
+
+          <AssumptionBlock>
+            <p>
+              {"We'll assume your employer "}
+              <InlineSelect
+                value={hasMatch ? "matches" : "nomatch"}
+                onChange={(v) => setField("hasEmployerMatch", v === "matches")}
+                options={[
+                  { value: "nomatch", label: "doesn't match" },
+                  { value: "matches", label: "matches" },
+                ]}
+              />
+              {hasMatch && (
+                <>
+                  {" "}
+                  <InlineEditable
+                    value={matchPct}
+                    onChange={(v) => setField("employerMatchPct", v)}
+                    format={(n) => `${n}%`}
+                    min={0}
+                    max={100}
+                  />
+                  {" of contributions up to "}
+                  <InlineEditable
+                    value={matchUpTo}
+                    onChange={(v) => setField("employerMatchUpToPct", v)}
+                    format={(n) => `${n}%`}
+                    min={0}
+                    max={20}
+                  />
+                  {" of your salary"}
+                </>
+              )}
+              {"."}
+            </p>
+          </AssumptionBlock>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StepExpenses({
+  inputs,
+  setField,
+}: {
+  inputs: Partial<OnboardingInputs>;
+  setField: <K extends keyof OnboardingInputs>(key: K, value: OnboardingInputs[K]) => void;
+}) {
+  const hasDebt = inputs.hasDebt ?? false;
+  const debtBalance = inputs.debtBalance ?? 0;
+  const hasChildren = inputs.hasChildren ?? false;
+  const childCost = inputs.childrenMonthlyCost ?? 1_500;
+
+  const [debtText, setDebtText] = useState<string>(
+    debtBalance > 0 ? formatSavings(debtBalance) : ""
+  );
+
+  const commitDebt = (s: string) => {
+    const parsed = parseMoney(s);
+    if (parsed !== null && parsed >= 0) setField("debtBalance", parsed);
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <h2 className="type-title" style={{ color: "var(--ink-60)" }}>
+          Any debt outside your mortgage?
+        </h2>
+        <p className="type-body" style={{ color: "var(--ink-30)" }}>
+          Student loans, car payments, credit cards — rough total is fine.
+        </p>
+      </div>
+      <TapSelect
+        value={hasDebt ? "yes" : "no"}
+        onChange={(v) => setField("hasDebt", v === "yes")}
+        options={[
+          { value: "no", label: "No debt", emoji: "✓", sublabel: "Clear of non-mortgage debt" },
+          { value: "yes", label: "Yes, some debt", emoji: "📋", sublabel: "Student loans, car, cards..." },
+        ]}
+      />
+
+      {hasDebt && (
+        <div className="space-y-2">
+          <p className="type-label-caps" style={{ color: "var(--ink-60)" }}>
+            Total balance
+          </p>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="$0"
+            value={debtText}
+            onChange={(e) => setDebtText(e.target.value)}
+            onBlur={(e) => commitDebt(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+            style={{
+              fontFamily: "var(--font-lora), Georgia, serif",
+              fontSize: "34px",
+              fontWeight: 500,
+              letterSpacing: "-0.02em",
+              color: "var(--gold)",
+              background: "transparent",
+              border: "none",
+              borderBottom: "1.5px solid var(--gold)",
+              outline: "none",
+              width: "100%",
+              textAlign: "center",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          />
+        </div>
+      )}
+
+      <AssumptionBlock>
+        <p>
+          {"We'll assume "}
+          <InlineSelect
+            value={hasChildren ? "children" : "nochildren"}
+            onChange={(v) => {
+              const kids = v === "children";
+              setField("hasChildren", kids);
+              if (!kids) setField("childrenMonthlyCost", undefined);
+            }}
+            options={[
+              { value: "nochildren", label: "no children" },
+              { value: "children", label: "children" },
+            ]}
+          />
+          {hasChildren && (
+            <>
+              {" costing "}
+              <InlineEditable
+                value={childCost}
+                onChange={(v) => setField("childrenMonthlyCost", v)}
+                format={(n) => `$${n.toLocaleString()}/mo`}
+                min={0}
+                max={10_000}
+              />
+            </>
+          )}
+          {"."}
+        </p>
+      </AssumptionBlock>
     </div>
   );
 }
 
 function AssumptionBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        marginTop: "0",
-        paddingTop: "20px",
-        borderTop: "1px solid var(--border)",
-      }}
-    >
+    <div style={{ paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
       <div
         style={{
           fontSize: "11px",

@@ -18,6 +18,23 @@ export interface OnboardingInputs {
   employerMatchPct?: number;
   employerMatchUpToPct?: number;
   monthlyMortgage?: number;
+  // savings bucket split
+  cashSavings?: number;
+  retirementSavings?: number;
+  brokerageSavings?: number;
+  // housing (own)
+  homeValue?: number;
+  hasMortgage?: boolean;
+  mortgageBalance?: number;
+  // 401k step
+  has401k?: boolean;
+  contributionPct?: number;
+  hasEmployerMatch?: boolean;
+  // expenses step
+  hasDebt?: boolean;
+  debtBalance?: number;
+  hasChildren?: boolean;
+  childrenMonthlyCost?: number;
 }
 
 interface OnboardingStore {
