@@ -8,13 +8,13 @@ import { buildDefaultLifeEvents } from "@/lib/defaultLifeEvents";
 
 interface PlanStore {
   plan: PlanState | null;
-  activeTab: "dashboard" | "allocation" | "milestones";
+  activeTab: "dashboard" | "allocation" | "milestones" | "inputs";
   selectedAge: number;
   lifeEvents: LifeEvent[];
   lastToggleResponse: string;
 
   setPlan: (plan: PlanState) => void;
-  setActiveTab: (tab: "dashboard" | "allocation" | "milestones") => void;
+  setActiveTab: (tab: "dashboard" | "allocation" | "milestones" | "inputs") => void;
   setSelectedAge: (age: number) => void;
   toggleLifeEvent: (id: string) => void;
   setLastToggleResponse: (msg: string) => void;

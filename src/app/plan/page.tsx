@@ -8,6 +8,7 @@ import type { LifeEvent, Mutation } from "@/scenario/lifeEvents/types";
 import { computeMilestones, type MilestoneResult } from "@/scenario/compute/milestoneEtas";
 import { buildOverridesFromLifeEvent } from "@/scenario/lifeEvents/toTargetedOverrides";
 import { buildScenarioYearInputsFromOverrides, extendYearInputsToAge } from "@/rulespec/index";
+import { useOnboardingStore } from "@/store/onboardingStore";
 import { LifeEventsSidebar } from "@/components/layout/LifeEventsSidebar";
 import { RoadmapPanel } from "@/components/layout/RoadmapPanel";
 import { ProjectionChart } from "@/components/chart/ProjectionChart";
@@ -694,12 +695,158 @@ function AllocationTab() {
   );
 }
 
+/* ── Inputs debug tab (temporary — remove component, TABS entry, and render line) ── */
+
+function InputsTab() {
+  const inputs = useOnboardingStore((s) => s.inputs);
+
+  const inc = inputs.householdIncome ?? 120_000;
+  const sav = inputs.totalSavings ?? 50_000;
+  const hv  = inputs.homeValue ?? Math.round(inc * 3);
+
+  // Effective values with defaults
+  const rows: {
+    group: string;
+    label: string;
+    value: string;
+    assumed: boolean;
+  }[] = [
+    // Income & Spending
+    { group: "Income & Spending",  label: "Income",              value: `$${inc.toLocaleString()}/yr`,                                          assumed: false },
+    { group: "Income & Spending",  label: "Rent",                value: `$${(inputs.monthlyRent ?? Math.round(inc / 40)).toLocaleString()}/mo`,  assumed: inputs.monthlyRent === undefined },
+    { group: "Income & Spending",  label: "Lifestyle spend",     value: `$${(inputs.lifestyleMonthly ?? Math.round(inc * 0.25 / 12)).toLocaleString()}/mo`, assumed: inputs.lifestyleMonthly === undefined },
+    { group: "Income & Spending",  label: "Partner",             value: inputs.hasPartner ? "Yes" : "No",                                        assumed: inputs.hasPartner === undefined },
+    ...(inputs.hasPartner ? [
+      { group: "Income & Spending", label: "Partner age",        value: String(inputs.partnerAge ?? inputs.age ?? 30),                           assumed: inputs.partnerAge === undefined },
+      { group: "Income & Spending", label: "Partner income",     value: `$${(inputs.partnerIncome ?? 80_000).toLocaleString()}/yr`,               assumed: inputs.partnerIncome === undefined },
+    ] : []),
+
+    // Savings
+    { group: "Savings",  label: "Total savings",          value: `$${sav.toLocaleString()}`,                                                                                             assumed: false },
+    { group: "Savings",  label: "Retirement accounts",    value: `$${(inputs.retirementSavings ?? Math.round(sav * 0.7)).toLocaleString()}`,     assumed: inputs.retirementSavings === undefined },
+    { group: "Savings",  label: "Cash & savings",         value: `$${(inputs.cashSavings ?? Math.round(sav * 0.3)).toLocaleString()}`,           assumed: inputs.cashSavings === undefined },
+    { group: "Savings",  label: "Taxable investments",    value: `$${(inputs.brokerageSavings ?? 0).toLocaleString()}`,                         assumed: inputs.brokerageSavings === undefined },
+
+    // Housing
+    { group: "Housing",  label: "Status",                 value: inputs.housing === "own" ? "Own" : "Rent",                                      assumed: false },
+    ...(inputs.housing === "own" ? [
+      { group: "Housing", label: "Home value",            value: `$${hv.toLocaleString()}`,                                                      assumed: inputs.homeValue === undefined },
+      { group: "Housing", label: "Has mortgage",          value: (inputs.hasMortgage ?? true) ? "Yes" : "No",                                   assumed: inputs.hasMortgage === undefined },
+      ...((inputs.hasMortgage ?? true) ? [
+        { group: "Housing", label: "Mortgage balance",    value: `$${(inputs.mortgageBalance ?? Math.round(hv * 0.75)).toLocaleString()}`,       assumed: inputs.mortgageBalance === undefined },
+      ] : []),
+    ] : []),
+
+    // Retirement & 401(k)
+    { group: "Retirement & 401(k)", label: "Your age",           value: String(inputs.age ?? 30),                                                assumed: false },
+    { group: "Retirement & 401(k)", label: "Retirement target",  value: `Age ${inputs.retirementAge ?? 62}`,                                    assumed: false },
+    { group: "Retirement & 401(k)", label: "Has 401(k)",         value: (inputs.has401k ?? true) ? "Yes" : "No",                                assumed: inputs.has401k === undefined },
+    ...((inputs.has401k ?? true) ? [
+      { group: "Retirement & 401(k)", label: "Contribution",     value: `${inputs.contributionPct ?? 6}%`,                                      assumed: inputs.contributionPct === undefined },
+      { group: "Retirement & 401(k)", label: "Employer match",   value: (inputs.hasEmployerMatch ?? true) ? "Yes" : "No",                       assumed: inputs.hasEmployerMatch === undefined },
+      ...((inputs.hasEmployerMatch ?? true) ? [
+        { group: "Retirement & 401(k)", label: "Match rate",     value: `${inputs.employerMatchPct ?? 50}%`,                                    assumed: inputs.employerMatchPct === undefined },
+        { group: "Retirement & 401(k)", label: "Match cap",      value: `${inputs.employerMatchUpToPct ?? 6}% of salary`,                       assumed: inputs.employerMatchUpToPct === undefined },
+      ] : []),
+    ] : []),
+
+    // Debt & Expenses
+    { group: "Debt & Expenses", label: "Has debt",               value: (inputs.hasDebt ?? false) ? "Yes" : "No",                               assumed: inputs.hasDebt === undefined },
+    ...(inputs.hasDebt ? [
+      { group: "Debt & Expenses", label: "Debt balance",         value: `$${(inputs.debtBalance ?? 0).toLocaleString()}`,                       assumed: false },
+    ] : []),
+    { group: "Debt & Expenses", label: "Has children",           value: (inputs.hasChildren ?? false) ? "Yes" : "No",                           assumed: inputs.hasChildren === undefined },
+    ...(inputs.hasChildren ? [
+      { group: "Debt & Expenses", label: "Children cost",        value: `$${(inputs.childrenMonthlyCost ?? 1_500).toLocaleString()}/mo`,         assumed: inputs.childrenMonthlyCost === undefined },
+    ] : []),
+  ];
+
+  const groups = Array.from(new Set(rows.map((r) => r.group)));
+
+  return (
+    <div style={{ padding: "20px 28px 28px" }}>
+      <div
+        style={{
+          fontSize: "11px",
+          color: "var(--ink-30)",
+          fontFamily: "var(--font-geist-sans)",
+          marginBottom: "16px",
+        }}
+      >
+        <span style={{ color: "var(--ink)", fontWeight: 500 }}>■</span> you provided &nbsp;
+        <span style={{ color: "var(--rose)", fontWeight: 500 }}>■</span> assumed default
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        {groups.map((group) => (
+          <div
+            key={group}
+            style={{
+              background: "white",
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "10px 16px",
+                borderBottom: "1px solid var(--border)",
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                fontWeight: 500,
+                color: "var(--ink-60)",
+              }}
+            >
+              {group}
+            </div>
+            {rows.filter((r) => r.group === group).map((row, i, arr) => (
+              <div
+                key={row.label}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "9px 16px",
+                  borderBottom: i < arr.length - 1 ? "1px solid var(--border)" : "none",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--ink-60)",
+                    fontFamily: "var(--font-geist-sans)",
+                  }}
+                >
+                  {row.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontFamily: "var(--font-geist-mono)",
+                    fontWeight: 500,
+                    color: row.assumed ? "var(--rose)" : "var(--ink)",
+                  }}
+                >
+                  {row.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main page ───────────────────────────────────────────────── */
 
 const TABS = [
   { id: "dashboard" as const,   label: "Dashboard"         },
   { id: "allocation" as const,  label: "Allocation Detail" },
   { id: "milestones" as const,  label: "Milestones"        },
+  { id: "inputs" as const,      label: "Inputs"            },
 ];
 
 const SIM_MAX_AGE = 85;
@@ -889,6 +1036,7 @@ export default function PlanPage() {
               startAge={plan.startAge}
             />
           )}
+          {activeTab === "inputs" && <InputsTab />}
         </div>
       </main>
 
