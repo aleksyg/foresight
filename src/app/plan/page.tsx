@@ -708,6 +708,17 @@ function InputsTab() {
   const pct = (v: number) => `${(v * 100).toFixed(1).replace(/\.0$/, "")}%`;
   const a   = plan?.assumptions;
 
+  const firstRow = useMemo(() => {
+    if (!plan) return null;
+    return simulatePlan(plan, { minEndAge: plan.endAge })[0] ?? null;
+  }, [plan]);
+
+  const grossIncome = plan
+    ? plan.household.user.income.baseAnnual + (plan.household.partner?.income.baseAnnual ?? 0)
+    : 1;
+  const effRate = (n: number) =>
+    grossIncome > 0 ? `${((n / grossIncome) * 100).toFixed(1)}%` : "—";
+
   // Effective values with defaults
   const rows: {
     group: string;
@@ -781,8 +792,10 @@ function InputsTab() {
     { group: "Model Assumptions", label: "Inflation rate",       value: pct(a?.inflationRate ?? 0.025),  assumed: true },
     { group: "Model Assumptions", label: "Cash / HYSA rate",     value: pct(a?.cashRate     ?? 0.04),   assumed: true },
     { group: "Model Assumptions", label: "Home appreciation",    value: pct(plan?.balanceSheet.home.appreciationPct ?? 0), assumed: true },
-    { group: "Model Assumptions", label: "Flat tax rate",        value: pct(a?.flatTaxRate  ?? 0.28),   assumed: true },
-    { group: "Model Assumptions", label: "State tax rate",       value: pct(a?.stateTaxRate ?? 0.05),   assumed: true },
+    { group: "Model Assumptions", label: "Federal effective rate", value: firstRow ? effRate(firstRow.federalIncomeTax) : "—", assumed: true },
+    { group: "Model Assumptions", label: "State effective rate",  value: firstRow ? effRate(firstRow.stateIncomeTax)   : "—", assumed: true },
+    { group: "Model Assumptions", label: "Payroll effective rate",value: firstRow ? effRate(firstRow.payrollTax)        : "—", assumed: true },
+    { group: "Model Assumptions", label: "Total effective rate",  value: firstRow ? effRate(firstRow.taxesPaid)         : "—", assumed: true },
   ];
 
   const groups = Array.from(new Set(rows.map((r) => r.group)));
