@@ -699,10 +699,14 @@ function AllocationTab() {
 
 function InputsTab() {
   const inputs = useOnboardingStore((s) => s.inputs);
+  const plan   = usePlanStore((s) => s.plan);
 
   const inc = inputs.householdIncome ?? 120_000;
   const sav = inputs.totalSavings ?? 50_000;
   const hv  = inputs.homeValue ?? Math.round(inc * 3);
+
+  const pct = (v: number) => `${(v * 100).toFixed(1).replace(/\.0$/, "")}%`;
+  const a   = plan?.assumptions;
 
   // Effective values with defaults
   const rows: {
@@ -754,11 +758,31 @@ function InputsTab() {
     { group: "Debt & Expenses", label: "Has debt",               value: (inputs.hasDebt ?? false) ? "Yes" : "No",                               assumed: inputs.hasDebt === undefined },
     ...(inputs.hasDebt ? [
       { group: "Debt & Expenses", label: "Debt balance",         value: `$${(inputs.debtBalance ?? 0).toLocaleString()}`,                       assumed: false },
+      { group: "Debt & Expenses", label: "Debt APR",             value: "6.5%",                                                                 assumed: true },
+      { group: "Debt & Expenses", label: "Payoff term",          value: "5 years",                                                              assumed: true },
     ] : []),
     { group: "Debt & Expenses", label: "Has children",           value: (inputs.hasChildren ?? false) ? "Yes" : "No",                           assumed: inputs.hasChildren === undefined },
     ...(inputs.hasChildren ? [
       { group: "Debt & Expenses", label: "Children cost",        value: `$${(inputs.childrenMonthlyCost ?? 1_500).toLocaleString()}/mo`,         assumed: inputs.childrenMonthlyCost === undefined },
+      { group: "Debt & Expenses", label: "Child age",            value: "0 (newborn)",                                                          assumed: true },
     ] : []),
+
+    // Income Details (never exposed)
+    { group: "Income Details",  label: "Bonus income",           value: "None",                                                                  assumed: true },
+    { group: "Income Details",  label: "Pre-tax deductions",     value: "$0/mo",                                                                 assumed: true },
+    { group: "Income Details",  label: "Income growth rate",     value: pct(plan?.household.user.income.incomeGrowthRate ?? 0.03),               assumed: true },
+    ...(inputs.hasPartner ? [
+      { group: "Income Details", label: "Partner contribution",  value: pct((plan?.household.partner?.income.retirement.employeePreTaxContributionPct ?? 6) / 100), assumed: true },
+      { group: "Income Details", label: "Partner match",         value: "50% up to 6%",                                                         assumed: true },
+    ] : []),
+
+    // Model Assumptions (never exposed)
+    { group: "Model Assumptions", label: "Investment return",    value: pct(a?.returnRate   ?? 0.07),   assumed: true },
+    { group: "Model Assumptions", label: "Inflation rate",       value: pct(a?.inflationRate ?? 0.025),  assumed: true },
+    { group: "Model Assumptions", label: "Cash / HYSA rate",     value: pct(a?.cashRate     ?? 0.04),   assumed: true },
+    { group: "Model Assumptions", label: "Home appreciation",    value: pct(plan?.balanceSheet.home.appreciationPct ?? 0), assumed: true },
+    { group: "Model Assumptions", label: "Flat tax rate",        value: pct(a?.flatTaxRate  ?? 0.28),   assumed: true },
+    { group: "Model Assumptions", label: "State tax rate",       value: pct(a?.stateTaxRate ?? 0.05),   assumed: true },
   ];
 
   const groups = Array.from(new Set(rows.map((r) => r.group)));
