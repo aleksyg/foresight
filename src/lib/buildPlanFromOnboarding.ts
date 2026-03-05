@@ -76,7 +76,7 @@ export function buildPlanFromOnboarding(inputs: OnboardingInputs): PlanState {
             employerMatchPct: has401k && hasEmployerMatch ? employerMatchPct : 0,
             employerMatchUpToPct: has401k && hasEmployerMatch ? employerMatchUpToPct : 0,
           },
-          incomeGrowthRate: 0.03,
+          incomeGrowthRate: 0.01,
         },
       },
       hasPartner,
@@ -94,7 +94,7 @@ export function buildPlanFromOnboarding(inputs: OnboardingInputs): PlanState {
                 employerMatchPct: 50,
                 employerMatchUpToPct: 6,
               },
-              incomeGrowthRate: 0.03,
+              incomeGrowthRate: 0.01,
             },
           }
         : undefined,
