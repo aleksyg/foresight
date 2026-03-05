@@ -126,27 +126,56 @@ export default function Stage1Page() {
       </div>
 
       {/* Step counter */}
-      <div className="flex items-center justify-between px-8 pt-6">
-        <button
-          type="button"
-          onClick={back}
-          className="type-body-small transition-opacity"
-          style={{
-            color: "var(--ink-60)",
-            opacity: currentStep === 0 ? 0 : 1,
-            pointerEvents: currentStep === 0 ? "none" : "auto",
-          }}
-        >
-          ← Back
-        </button>
+      <div className="flex items-center justify-end px-8 pt-6">
         <span className="type-label-caps" style={{ color: "var(--ink-30)" }}>
           {currentStep + 1} / {TOTAL_STEPS}
         </span>
-        <div className="w-12" />
       </div>
 
       {/* Step content */}
-      <div className="flex-1 flex items-center justify-center px-6 py-8">
+      <div className="flex-1 flex items-center justify-center px-6 py-8 relative">
+        {/* Back button — floats left of the form */}
+        {currentStep > 0 && (
+          <button
+            type="button"
+            onClick={back}
+            aria-label="Go back"
+            className="absolute left-6 group"
+            style={{ top: "50%", transform: "translateY(-50%)" }}
+          >
+            <span
+              className="flex items-center justify-center rounded-full transition-colors duration-150"
+              style={{
+                width: "40px",
+                height: "40px",
+                color: "var(--gold)",
+                background: "transparent",
+              }}
+              onMouseEnter={(e) =>
+                ((e.currentTarget as HTMLElement).style.background =
+                  "var(--gold-bg)")
+              }
+              onMouseLeave={(e) =>
+                ((e.currentTarget as HTMLElement).style.background =
+                  "transparent")
+              }
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="13 4 7 10 13 16" />
+              </svg>
+            </span>
+          </button>
+        )}
+
         <div
           className="w-full flex items-center gap-12"
           style={{
