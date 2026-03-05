@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { usePlanStore } from "@/store/planStore";
 import { simulatePlan } from "@/engine";
 import type { LifeEvent, Mutation } from "@/scenario/lifeEvents/types";
@@ -9,6 +10,8 @@ import { computeMilestones, type MilestoneResult } from "@/scenario/compute/mile
 import { buildOverridesFromLifeEvent } from "@/scenario/lifeEvents/toTargetedOverrides";
 import { buildScenarioYearInputsFromOverrides, extendYearInputsToAge } from "@/rulespec/index";
 import { useOnboardingStore } from "@/store/onboardingStore";
+import type { OnboardingInputs } from "@/store/onboardingStore";
+import { buildPlanFromOnboarding } from "@/lib/buildPlanFromOnboarding";
 import { LifeEventsSidebar } from "@/components/layout/LifeEventsSidebar";
 import { RoadmapPanel } from "@/components/layout/RoadmapPanel";
 import { ProjectionChart } from "@/components/chart/ProjectionChart";
@@ -115,7 +118,7 @@ function MetricCard({
   deltaPositive,
   small,
 }: {
-  label: string;
+  label: ReactNode;
   value: string;
   delta?: string;
   deltaPositive?: boolean;
@@ -877,6 +880,118 @@ function InputsTab() {
   );
 }
 
+/* ── Retirement age inline editor ───────────────────────────── */
+
+function RetirementAgeEditor({
+  currentAge,
+  retirementAge,
+  onCommit,
+}: {
+  currentAge: number;
+  retirementAge: number;
+  onCommit: (age: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(retirementAge));
+  const [error, setError] = useState(false);
+  const cancelRef = useRef(false);
+
+  function startEdit() {
+    setDraft(String(retirementAge));
+    setError(false);
+    cancelRef.current = false;
+    setEditing(true);
+  }
+
+  function commit() {
+    if (cancelRef.current) {
+      cancelRef.current = false;
+      return;
+    }
+    const parsed = parseInt(draft, 10);
+    if (!isNaN(parsed) && parsed > currentAge) {
+      onCommit(parsed);
+      setEditing(false);
+      setError(false);
+    } else {
+      setError(true);
+    }
+  }
+
+  function cancel() {
+    cancelRef.current = true;
+    setEditing(false);
+    setError(false);
+    setDraft(String(retirementAge));
+  }
+
+  if (!editing) {
+    return (
+      <span
+        title="Adjust your retirement age"
+        onClick={startEdit}
+        style={{
+          cursor: "pointer",
+          textDecoration: "underline dotted",
+          textDecorationColor: "rgba(0,0,0,0.3)",
+          textUnderlineOffset: "2px",
+        }}
+      >
+        {retirementAge}
+      </span>
+    );
+  }
+
+  return (
+    <span style={{ position: "relative", display: "inline-block" }}>
+      <input
+        autoFocus
+        type="number"
+        value={draft}
+        onChange={(e) => { setDraft(e.target.value); setError(false); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") cancel();
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        onBlur={commit}
+        style={{
+          width: `${Math.max(2, draft.length)}ch`,
+          fontFamily: "inherit",
+          fontSize: "inherit",
+          fontWeight: "inherit",
+          letterSpacing: "inherit",
+          textTransform: "none",
+          border: "none",
+          borderBottom: `1px solid ${error ? "var(--rose)" : "var(--ink)"}`,
+          outline: "none",
+          background: "transparent",
+          color: error ? "var(--rose)" : "inherit",
+          padding: 0,
+          MozAppearance: "textfield",
+        } as React.CSSProperties}
+      />
+      {error && (
+        <span
+          style={{
+            position: "absolute",
+            bottom: "-16px",
+            left: 0,
+            fontSize: "9px",
+            color: "var(--rose)",
+            whiteSpace: "nowrap",
+            textTransform: "none",
+            fontFamily: "var(--font-geist-mono)",
+            letterSpacing: 0,
+            fontWeight: 400,
+          }}
+        >
+          Must be &gt; age {currentAge}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /* ── Main page ───────────────────────────────────────────────── */
 
 const TABS = [
@@ -890,7 +1005,8 @@ const SIM_MAX_AGE = 85;
 
 export default function PlanPage() {
   const router = useRouter();
-  const { plan, activeTab, setActiveTab, lifeEvents } = usePlanStore();
+  const { plan, activeTab, setActiveTab, lifeEvents, setPlan } = usePlanStore();
+  const { inputs, setField } = useOnboardingStore();
 
   useEffect(() => {
     if (!plan) router.replace("/onboarding/stage1");
@@ -946,6 +1062,12 @@ export default function PlanPage() {
     ? Math.max(0, Math.round((annualSavings / annualIncome) * 100))
     : 0;
 
+  function handleRetirementAgeChange(newAge: number) {
+    setField("retirementAge", newAge);
+    const mergedInputs = { ...inputs, retirementAge: newAge } as OnboardingInputs;
+    setPlan(buildPlanFromOnboarding(mergedInputs));
+  }
+
   return (
     <div
       style={{
@@ -997,7 +1119,7 @@ export default function PlanPage() {
           }}
         >
           <MetricCard
-            label={`At retirement · Age ${plan.endAge}`}
+            label={<>At retirement · Age <RetirementAgeEditor currentAge={plan.startAge} retirementAge={plan.endAge} onCommit={handleRetirementAgeChange} /></>}
             value={fmt(projectedAtRetirement)}
             delta={
               scenarioRows.length > 0 && Math.abs(scenarioDelta) >= 1000
