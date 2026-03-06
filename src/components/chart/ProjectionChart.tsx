@@ -50,7 +50,7 @@ function EventMarkerLabel({
         cx={cx}
         cy={cy}
         r={11}
-        fill="white"
+        fill="var(--paper)"
         stroke={hexColor}
         strokeWidth="1.5"
       />
@@ -152,7 +152,7 @@ export function ProjectionChart({ baselineRows, scenarioRows, markers, compact }
               ]}
               labelFormatter={(age) => `Age ${age}`}
               contentStyle={{
-                background: "white",
+                background: "var(--paper)",
                 border: "1px solid var(--border)",
                 borderRadius: "8px",
                 fontSize: "11px",

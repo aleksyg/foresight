@@ -120,7 +120,7 @@ export function RoadmapPanel() {
       style={{
         width: "320px",
         minWidth: "320px",
-        background: "white",
+        background: "var(--paper)",
         borderLeft: "1px solid var(--border)",
         display: "flex",
         flexDirection: "column",
@@ -192,7 +192,7 @@ export function RoadmapPanel() {
                 height: "9px",
                 borderRadius: "50%",
                 border: `1.5px solid ${phase.current ? "var(--gold)" : "var(--border)"}`,
-                background: phase.current ? "var(--gold)" : "white",
+                background: phase.current ? "var(--gold)" : "var(--paper)",
               }}
             />
 

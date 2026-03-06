@@ -13,6 +13,7 @@ import { OnboardingPreview } from "@/components/onboarding/OnboardingPreview";
 import { InlineEditable } from "@/components/onboarding/InlineEditable";
 import { InlineSelect } from "@/components/onboarding/InlineSelect";
 import { AgeRangeSlider } from "@/components/onboarding/AgeRangeSlider";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const TOTAL_STEPS = 7;
 
@@ -126,7 +127,8 @@ export default function Stage1Page() {
       </div>
 
       {/* Step counter */}
-      <div className="flex items-center justify-end px-8 pt-6">
+      <div className="flex items-center justify-end px-8 pt-6" style={{ gap: "12px" }}>
+        <ThemeToggle />
         <span className="type-label-caps" style={{ color: "var(--ink-30)" }}>
           {currentStep + 1} / {TOTAL_STEPS}
         </span>
@@ -311,7 +313,7 @@ function StepName({
           className="w-full rounded-xl border px-4 py-3 type-body outline-none transition-all"
           style={{
             borderColor: "var(--border)",
-            background: "white",
+            background: "var(--paper)",
             color: "var(--ink)",
           }}
         />

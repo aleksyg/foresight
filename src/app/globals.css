@@ -29,6 +29,63 @@
   --chart-scenario: #B8922A;
 }
 
+/* ── Dark mode tokens ───────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:   #18171A;
+    --surface: #1E1D20;
+    --border:  #2D2C30;
+    --ink:     #EDEBE6;
+    --ink-60:  #9B9894;
+    --ink-30:  #4A4846;
+    --gold:    #D4A93C;
+    --gold-bg: #261F0D;
+    --sage-bg:  #131F16;
+    --slate-bg: #11181F;
+    --rose-bg:  #1F1111;
+    --plum-bg:  #1A1120;
+    --amber-bg: #1F1610;
+    --teal-bg:  #0F1E1E;
+    --chart-baseline: #4A4846;
+  }
+}
+
+[data-theme="dark"] {
+  --paper:   #18171A;
+  --surface: #1E1D20;
+  --border:  #2D2C30;
+  --ink:     #EDEBE6;
+  --ink-60:  #9B9894;
+  --ink-30:  #4A4846;
+  --gold:    #D4A93C;
+  --gold-bg: #261F0D;
+  --sage-bg:  #131F16;
+  --slate-bg: #11181F;
+  --rose-bg:  #1F1111;
+  --plum-bg:  #1A1120;
+  --amber-bg: #1F1610;
+  --teal-bg:  #0F1E1E;
+  --chart-baseline: #4A4846;
+}
+
+[data-theme="light"] {
+  --paper:   #FAFAF8;
+  --surface: #F4F3EF;
+  --border:  #E5E3DC;
+  --ink:     #1A1916;
+  --ink-60:  #6B6860;
+  --ink-30:  #B5B2AA;
+  --gold:    #B8922A;
+  --gold-bg: #FBF5E6;
+  --sage-bg:  #EBF4EE;
+  --slate-bg: #EBF0F5;
+  --rose-bg:  #F5EBEB;
+  --plum-bg:  #F0EBF5;
+  --amber-bg: #F5EEEB;
+  --teal-bg:  #EBF4F4;
+  --chart-baseline: #B5B2AA;
+}
+
 /* ── Tailwind theme bridge ──────────────────────────────────── */
 @theme inline {
   --font-serif: var(--font-lora);

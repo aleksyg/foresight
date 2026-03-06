@@ -74,7 +74,7 @@ export function InlineSelect<T extends string>({
             top: "calc(100% + 4px)",
             left: 0,
             zIndex: 50,
-            background: "white",
+            background: "var(--paper)",
             border: "1px solid var(--border)",
             borderRadius: "8px",
             boxShadow: "0 4px 16px rgba(0,0,0,0.08)",

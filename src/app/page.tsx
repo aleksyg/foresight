@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 /* ── Static "screenshot" preview components ─────────────────── */
 
@@ -22,7 +23,7 @@ function EventCardPreview({
       style={{
         borderRadius: "10px",
         border: `1.5px solid ${on ? color : "var(--border)"}`,
-        background: on ? bg : "white",
+        background: on ? bg : "var(--surface)",
         padding: "10px 12px",
         display: "flex",
         alignItems: "flex-start",
@@ -69,7 +70,7 @@ function EventCardPreview({
             width: "12px",
             height: "12px",
             borderRadius: "50%",
-            background: "white",
+            background: "var(--paper)",
             top: "2px",
             left: on ? "14px" : "2px",
             boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
@@ -84,7 +85,7 @@ function ScreenshotLifeEvents() {
   return (
     <div
       style={{
-        background: "white",
+        background: "var(--paper)",
         border: "1px solid var(--border)",
         borderRadius: "14px",
         padding: "16px",
@@ -114,7 +115,7 @@ function ScreenshotAllocation() {
   return (
     <div
       style={{
-        background: "white",
+        background: "var(--paper)",
         border: "1px solid var(--border)",
         borderRadius: "14px",
         padding: "16px",
@@ -192,7 +193,7 @@ function MilestoneCardPreview({
   return (
     <div
       style={{
-        background: isReached ? "linear-gradient(135deg, #FEFDF9 0%, #F8F5EC 100%)" : "white",
+        background: isReached ? "linear-gradient(135deg, #FEFDF9 0%, #F8F5EC 100%)" : "var(--surface)",
         border: isReached ? "1.5px solid var(--gold)" : "1px solid var(--border)",
         borderRadius: "12px",
         padding: "14px",
@@ -236,7 +237,7 @@ function ScreenshotMilestones() {
   return (
     <div
       style={{
-        background: "white",
+        background: "var(--paper)",
         border: "1px solid var(--border)",
         borderRadius: "14px",
         padding: "16px",
@@ -319,17 +320,20 @@ export default function LandingPage() {
         >
           fore<span style={{ color: "var(--gold)" }}>sight</span>
         </div>
-        <Link
-          href="/plan"
-          style={{
-            fontSize: "12px",
-            color: "var(--ink-60)",
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
-        >
-          Back to my plan →
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <ThemeToggle />
+          <Link
+            href="/plan"
+            style={{
+              fontSize: "12px",
+              color: "var(--ink-60)",
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
+          >
+            Back to my plan →
+          </Link>
+        </div>
       </nav>
 
       {/* Hero */}

@@ -15,6 +15,7 @@ import { buildPlanFromOnboarding } from "@/lib/buildPlanFromOnboarding";
 import { LifeEventsSidebar } from "@/components/layout/LifeEventsSidebar";
 import { RoadmapPanel } from "@/components/layout/RoadmapPanel";
 import { ProjectionChart } from "@/components/chart/ProjectionChart";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 
@@ -127,7 +128,7 @@ function MetricCard({
   return (
     <div
       style={{
-        background: "white",
+        background: "var(--paper)",
         border: "1px solid var(--border)",
         borderRadius: "12px",
         padding: "14px 16px",
@@ -199,7 +200,7 @@ function DashboardTab({
       {/* Chart */}
       <div
         style={{
-          background: "white",
+          background: "var(--paper)",
           border: "1px solid var(--border)",
           borderRadius: "14px",
           padding: "20px",
@@ -219,7 +220,7 @@ function DashboardTab({
       {/* Active events impact */}
       <div
         style={{
-          background: "white",
+          background: "var(--paper)",
           border: "1px solid var(--border)",
           borderRadius: "12px",
           padding: "16px 20px",
@@ -326,7 +327,7 @@ function MilestonesTab({
       {/* Summary bar */}
       <div
         style={{
-          background: "white",
+          background: "var(--paper)",
           border: "1px solid var(--border)",
           borderRadius: "12px",
           padding: "14px 16px",
@@ -408,7 +409,7 @@ function MilestonesTab({
               style={{
                 background: isReached
                   ? "linear-gradient(135deg, #FEFDF9 0%, #F8F5EC 100%)"
-                  : "white",
+                  : "var(--surface)",
                 border: isReached
                   ? "1.5px solid var(--gold)"
                   : isNext
@@ -822,7 +823,7 @@ function InputsTab() {
           <div
             key={group}
             style={{
-              background: "white",
+              background: "var(--paper)",
               border: "1px solid var(--border)",
               borderRadius: "12px",
               overflow: "hidden",
@@ -1147,35 +1148,41 @@ export default function PlanPage() {
         <div
           style={{
             display: "flex",
-            gap: 0,
+            alignItems: "center",
+            justifyContent: "space-between",
             padding: "14px 28px 0",
             flexShrink: 0,
             borderBottom: "1px solid var(--border)",
           }}
         >
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                fontSize: "12px",
-                fontWeight: 500,
-                color: activeTab === tab.id ? "var(--ink)" : "var(--ink-60)",
-                padding: "8px 14px",
-                borderBottom: activeTab === tab.id
-                  ? "2px solid var(--ink)"
-                  : "2px solid transparent",
-                marginBottom: "-1px",
-                transition: "all 0.15s",
-                letterSpacing: "0.01em",
-                background: "none",
-                cursor: "pointer",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <div style={{ display: "flex", gap: 0 }}>
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: activeTab === tab.id ? "var(--ink)" : "var(--ink-60)",
+                  padding: "8px 14px",
+                  borderBottom: activeTab === tab.id
+                    ? "2px solid var(--ink)"
+                    : "2px solid transparent",
+                  marginBottom: "-1px",
+                  transition: "all 0.15s",
+                  letterSpacing: "0.01em",
+                  background: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ paddingBottom: "8px" }}>
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Tab content */}

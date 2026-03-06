@@ -53,7 +53,7 @@ function Toggle({ on, color }: { on: boolean; color: EventColor }) {
           width: "12px",
           height: "12px",
           borderRadius: "50%",
-          background: "white",
+          background: "var(--paper)",
           top: "2px",
           left: "2px",
           transform: on ? "translateX(12px)" : "translateX(0)",
@@ -115,7 +115,7 @@ export function LifeEventsSidebar() {
       style={{
         width: "280px",
         minWidth: "280px",
-        background: "white",
+        background: "var(--paper)",
         borderRight: "1px solid var(--border)",
         display: "flex",
         flexDirection: "column",
@@ -201,7 +201,7 @@ export function LifeEventsSidebar() {
                 cursor: "pointer",
                 transition: "all 0.18s",
                 overflow: "hidden",
-                background: evt.enabled ? bg : "white",
+                background: evt.enabled ? bg : "var(--surface)",
               }}
             >
               <div

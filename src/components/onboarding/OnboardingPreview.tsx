@@ -196,7 +196,7 @@ export function OnboardingPreview({ inputs, step }: OnboardingPreviewProps) {
       <div
         style={{
           height: "180px",
-          background: "white",
+          background: "var(--paper)",
           border: "1px solid var(--border)",
           borderRadius: "12px",
           padding: "12px 8px 8px",
